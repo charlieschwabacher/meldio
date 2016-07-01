@@ -12,47 +12,62 @@ import { syntaxError } from './syntaxError';
 import { lex, TokenKind, getTokenKindDesc, getTokenDesc } from './lexer';
 import type { Token } from './lexer';
 import type {
+  Name,
   Variable,
-  Document,
 
-  ObjectTypeDefinition,
-  FieldDefinition,
-  InputValueDefinition,
-  InterfaceTypeDefinition,
-  UnionTypeDefinition,
-  ScalarTypeDefinition,
-  EnumTypeDefinition,
-  EnumValueDefinition,
-  InputObjectTypeDefinition,
-  TypeExtensionDefinition,
-  MutationDefinition,
-  FilterDefinition,
-  FilterCondition,
-  OrderDefinition,
-  OrderExpression,
-  NodeConnectionDefinition,
-  ScalarConnectionDefinition,
-  ObjectConnectionDefinition,
-  EdgeDefinition,
-  Directive,
+  Document,
+  Argument,
+
 
   Value,
   ListValue,
   ObjectValue,
   ObjectField,
 
-  Name,
-  NamedType,
+  Directive,
 
-  TypeDefinition,
   Type,
-  Argument,
+  NamedType,
+  ListType,
+  NonNullType,
+
+  TypeSystemDefinition,
+
+  ScalarTypeDefinition,
+  ObjectTypeDefinition,
+  FieldDefinition,
+  InputValueDefinition,
+  InterfaceTypeDefinition,
+  UnionTypeDefinition,
+  EnumTypeDefinition,
+  EnumValueDefinition,
+  InputObjectTypeDefinition,
+
+  TypeExtensionDefinition,
+
+  DirectiveDefinition,
+
+  FieldType,
+  MutationDefinition,
+  MutationFieldDefinition,
+  MutationFieldType,
+  QueryDefinition,
+  QueryFieldDefinition,
+  FilterDefinition,
+  FilterCondition,
+  OrderDefinition,
+  OrderExpression,
+  ConnectionType,
+  EdgeType,
 } from './ast';
 
 import {
   NAME,
   VARIABLE,
+
   DOCUMENT,
+  ARGUMENT,
+
 
   INT,
   FLOAT,
@@ -68,31 +83,32 @@ import {
   NAMED_TYPE,
   LIST_TYPE,
   NON_NULL_TYPE,
-  ARGUMENT,
 
+  SCALAR_TYPE_DEFINITION,
   OBJECT_TYPE_DEFINITION,
   FIELD_DEFINITION,
   INPUT_VALUE_DEFINITION,
   INTERFACE_TYPE_DEFINITION,
   UNION_TYPE_DEFINITION,
-  SCALAR_TYPE_DEFINITION,
   ENUM_TYPE_DEFINITION,
   ENUM_VALUE_DEFINITION,
   INPUT_OBJECT_TYPE_DEFINITION,
 
   TYPE_EXTENSION_DEFINITION,
 
-  MUTATION_DEFINITION,
-  NODE_CONNECTION_DEFINITION,
-  SCALAR_CONNECTION_DEFINITION,
-  OBJECT_CONNECTION_DEFINITION,
-  EDGE_DEFINITION,
+  DIRECTIVE_DEFINITION,
 
+  MUTATION_DEFINITION,
+  MUTATION_FIELD_DEFINITION,
+  QUERY_DEFINITION,
+  QUERY_FIELD_DEFINITION,
   FILTER_DEFINITION,
   FILTER_CONDITION,
   ORDER_DEFINITION,
   ORDER_EXPRESSION,
-
+  CONNECTION_TYPE,
+  CONNECTION_JOIN_TYPE,
+  EDGE_TYPE,
 } from './kinds';
 
 
@@ -141,30 +157,17 @@ export function parseValue(
 ): Value {
   const sourceObj = source instanceof Source ? source : new Source(source);
   const parser = makeParser(sourceObj, options || {});
-  return parseValueLiteral(parser);
-}
-
-/**
- * Variable : $ Name
- */
-function parseVariable(parser): Variable {
-  const start = parser.token.start;
-  expect(parser, TokenKind.DOLLAR);
-  return {
-    kind: VARIABLE,
-    name: parseName(parser),
-    loc: loc(parser, start)
-  };
+  return parseValueLiteral(parser, false);
 }
 
 /**
  * Converts a name lex token into a name parse node.
  */
-function parseName(parser): Name {
+function parseName(parser: Parser): Name {
   const token = expect(parser, TokenKind.NAME);
   return {
     kind: NAME,
-    value: token.value,
+    value: ((token.value: any): string),
     loc: loc(parser, token.start)
   };
 }
@@ -174,12 +177,12 @@ function parseName(parser): Name {
 /**
  * Document : Definition+
  */
-function parseDocument(parser): Document {
+function parseDocument(parser: Parser): Document {
   const start = parser.token.start;
 
   const definitions = [];
   do {
-    definitions.push(parseTypeDefinition(parser));
+    definitions.push(parseTypeSystemDefinition(parser));
   } while (!skip(parser, TokenKind.EOF));
 
   return {
@@ -188,11 +191,27 @@ function parseDocument(parser): Document {
     loc: loc(parser, start)
   };
 }
+/**
+ * Variable : $ Name
+ */
+function parseVariable(parser: Parser): Variable {
+  const start = parser.token.start;
+  expect(parser, TokenKind.DOLLAR);
+  return {
+    kind: VARIABLE,
+    name: parseName(parser),
+    loc: loc(parser, start)
+  };
+}
+
+
+// Implements the parsing rules in the Document section.
+
 
 /**
  * Arguments : ( Argument+ )
  */
-function parseArguments(parser): Array<Argument> {
+function parseArguments(parser: Parser): Array<Argument> {
   return peek(parser, TokenKind.PAREN_L) ?
     many(parser, TokenKind.PAREN_L, parseArgument, TokenKind.PAREN_R) :
     [];
@@ -201,7 +220,7 @@ function parseArguments(parser): Array<Argument> {
 /**
  * Argument : Name : Value
  */
-function parseArgument(parser): Argument {
+function parseArgument(parser: Parser): Argument {
   const start = parser.token.start;
   return {
     kind: ARGUMENT,
@@ -230,7 +249,7 @@ function parseArgument(parser): Argument {
  *
  * EnumValue : Name but not `true`, `false` or `null`
  */
-function parseValueLiteral(parser, isConst: boolean): Value {
+function parseValueLiteral(parser: Parser, isConst: boolean): Value {
   const token = parser.token;
   switch (token.kind) {
     case TokenKind.BRACKET_L:
@@ -241,21 +260,21 @@ function parseValueLiteral(parser, isConst: boolean): Value {
       advance(parser);
       return {
         kind: INT,
-        value: token.value,
+        value: ((token.value: any): string),
         loc: loc(parser, token.start)
       };
     case TokenKind.FLOAT:
       advance(parser);
       return {
         kind: FLOAT,
-        value: token.value,
+        value: ((token.value: any): string),
         loc: loc(parser, token.start)
       };
     case TokenKind.STRING:
       advance(parser);
       return {
         kind: STRING,
-        value: token.value,
+        value: ((token.value: any): string),
         loc: loc(parser, token.start)
       };
     case TokenKind.NAME:
@@ -270,7 +289,7 @@ function parseValueLiteral(parser, isConst: boolean): Value {
         advance(parser);
         return {
           kind: ENUM,
-          value: token.value,
+          value: ((token.value: any): string),
           loc: loc(parser, token.start)
         };
       }
@@ -284,11 +303,11 @@ function parseValueLiteral(parser, isConst: boolean): Value {
   throw unexpected(parser);
 }
 
-export function parseConstValue(parser): Value {
+export function parseConstValue(parser: Parser): Value {
   return parseValueLiteral(parser, true);
 }
 
-function parseValueValue(parser): Value {
+function parseValueValue(parser: Parser): Value {
   return parseValueLiteral(parser, false);
 }
 
@@ -297,7 +316,7 @@ function parseValueValue(parser): Value {
  *   - [ ]
  *   - [ Value[?Const]+ ]
  */
-function parseList(parser, isConst: boolean): ListValue {
+function parseList(parser: Parser, isConst: boolean): ListValue {
   const start = parser.token.start;
   const item = isConst ? parseConstValue : parseValueValue;
   return {
@@ -312,13 +331,12 @@ function parseList(parser, isConst: boolean): ListValue {
  *   - { }
  *   - { ObjectField[?Const]+ }
  */
-function parseObject(parser, isConst: boolean): ObjectValue {
+function parseObject(parser: Parser, isConst: boolean): ObjectValue {
   const start = parser.token.start;
   expect(parser, TokenKind.BRACE_L);
-  const fieldNames = {};
   const fields = [];
   while (!skip(parser, TokenKind.BRACE_R)) {
-    fields.push(parseObjectField(parser, isConst, fieldNames));
+    fields.push(parseObjectField(parser, isConst));
   }
   return {
     kind: OBJECT,
@@ -330,24 +348,11 @@ function parseObject(parser, isConst: boolean): ObjectValue {
 /**
  * ObjectField[Const] : Name : Value[?Const]
  */
-function parseObjectField(
-  parser,
-  isConst: boolean,
-  fieldNames: {[name: string]: boolean}
-): ObjectField {
+function parseObjectField(parser: Parser, isConst: boolean): ObjectField {
   const start = parser.token.start;
-  const name = parseName(parser);
-  if (fieldNames.hasOwnProperty(name.value)) {
-    throw syntaxError(
-      parser.source,
-      start,
-      `Duplicate input object field ${name.value}.`
-    );
-  }
-  fieldNames[name.value] = true;
   return {
     kind: OBJECT_FIELD,
-    name,
+    name: parseName(parser),
     value:
       (expect(parser, TokenKind.COLON), parseValueLiteral(parser, isConst)),
     loc: loc(parser, start)
@@ -360,7 +365,7 @@ function parseObjectField(
 /**
  * Directives : Directive+
  */
-function parseDirectives(parser): Array<Directive> {
+function parseDirectives(parser: Parser): Array<Directive> {
   const directives = [];
   while (peek(parser, TokenKind.AT)) {
     directives.push(parseDirective(parser));
@@ -371,7 +376,7 @@ function parseDirectives(parser): Array<Directive> {
 /**
  * Directive : @ Name Arguments?
  */
-function parseDirective(parser): Directive {
+function parseDirective(parser: Parser): Directive {
   const start = parser.token.start;
   expect(parser, TokenKind.AT);
   return {
@@ -391,156 +396,34 @@ function parseDirective(parser): Directive {
  *   - ListType
  *   - NonNullType
  */
-export function parseType(parser): Type {
+export function parseType(parser: Parser): Type {
   const start = parser.token.start;
   let type;
   if (skip(parser, TokenKind.BRACKET_L)) {
     type = parseType(parser);
     expect(parser, TokenKind.BRACKET_R);
-    type = {
+    type = ({
       kind: LIST_TYPE,
       type,
       loc: loc(parser, start)
-    };
+    }: ListType);
   } else {
     type = parseNamedType(parser);
   }
   if (skip(parser, TokenKind.BANG)) {
-    return {
+    return ({
       kind: NON_NULL_TYPE,
       type,
       loc: loc(parser, start)
-    };
+    }: NonNullType);
   }
   return type;
-}
-
-/**
- * FieldDefinitionType :
- *   - NamedType
- *   - ListType
- *   - NonNullType
- *   - NodeConnection
- *   - ScalarConnection
- *   - ObjectConnection
- */
-export function parseFieldDefinitionType(parser): Type {
-  const start = parser.token.start;
-  let type;
-  if (skip(parser, TokenKind.BRACKET_L)) {
-    type = parseType(parser);
-    expect(parser, TokenKind.BRACKET_R);
-    type = {
-      kind: LIST_TYPE,
-      type,
-      loc: loc(parser, start)
-    };
-  } else if (parser.token.kind === TokenKind.NAME &&
-        parser.token.value === 'NodeConnection') {
-    type = parseNodeConnectionDefinition(parser);
-  } else if (parser.token.kind === TokenKind.NAME &&
-        parser.token.value === 'ScalarConnection') {
-    type = parseScalarConnectionDefinition(parser);
-  } else if (parser.token.kind === TokenKind.NAME &&
-        parser.token.value === 'ObjectConnection') {
-    type = parseObjectConnectionDefinition(parser);
-  } else if (parser.token.kind === TokenKind.NAME &&
-        parser.token.value === 'Edge') {
-    type = parseEdgeDefinition(parser);
-  } else {
-    type = parseNamedType(parser);
-  }
-  if (skip(parser, TokenKind.BANG)) {
-    return {
-      kind: NON_NULL_TYPE,
-      type,
-      loc: loc(parser, start)
-    };
-  }
-  return type;
-}
-
-function parseNodeConnectionDefinition(
-  parser,
-  skipRelatedField = false
-): NodeConnectionDefinition {
-  const start = parser.token.start;
-  expectKeyword(parser, 'NodeConnection');
-  expect(parser, TokenKind.PAREN_L);
-  const type = parseNamedType(parser);
-  const relatedField = skipRelatedField ? null : parseName(parser);
-  let edgeType = null;
-  if (!peek(parser, TokenKind.PAREN_R)) {
-    edgeType = parseNamedType(parser);
-  }
-  expect(parser, TokenKind.PAREN_R);
-  return {
-    kind: NODE_CONNECTION_DEFINITION,
-    type,
-    relatedField,
-    edgeType,
-    loc: loc(parser, start),
-  };
-}
-
-function parseScalarConnectionDefinition(parser): ScalarConnectionDefinition {
-  const start = parser.token.start;
-  expectKeyword(parser, 'ScalarConnection');
-  expect(parser, TokenKind.PAREN_L);
-  const type = parseNamedType(parser);
-  let edgeType = null;
-  if (!peek(parser, TokenKind.PAREN_R)) {
-    edgeType = parseNamedType(parser);
-  }
-  expect(parser, TokenKind.PAREN_R);
-  return {
-    kind: SCALAR_CONNECTION_DEFINITION,
-    type,
-    edgeType,
-    loc: loc(parser, start),
-  };
-}
-
-function parseObjectConnectionDefinition(parser): ObjectConnectionDefinition {
-  const start = parser.token.start;
-  expectKeyword(parser, 'ObjectConnection');
-  expect(parser, TokenKind.PAREN_L);
-  const type = parseNamedType(parser);
-  let edgeType = null;
-  if (!peek(parser, TokenKind.PAREN_R)) {
-    edgeType = parseNamedType(parser);
-  }
-  expect(parser, TokenKind.PAREN_R);
-  return {
-    kind: OBJECT_CONNECTION_DEFINITION,
-    type,
-    edgeType,
-    loc: loc(parser, start),
-  };
-}
-
-function parseEdgeDefinition(parser): EdgeDefinition {
-  const start = parser.token.start;
-  expectKeyword(parser, 'Edge');
-  expect(parser, TokenKind.PAREN_L);
-  const type = parseNamedType(parser);
-  let edgeType = null;
-  if (!peek(parser, TokenKind.PAREN_R)) {
-    edgeType = parseNamedType(parser);
-  }
-  expect(parser, TokenKind.PAREN_R);
-  return {
-    kind: EDGE_DEFINITION,
-    type,
-    edgeType,
-    loc: loc(parser, start),
-  };
 }
 
 /**
  * NamedType : Name
  */
-export function parseNamedType(parser): NamedType {
+export function parseNamedType(parser: Parser): NamedType {
   const start = parser.token.start;
   return {
     kind: NAMED_TYPE,
@@ -553,50 +436,63 @@ export function parseNamedType(parser): NamedType {
 // Implements the parsing rules in the Type Definition section.
 
 /**
+ * TypeSystemDefinition :
+ *   - SchemaDefinition
+ *   - TypeDefinition
+ *   - TypeExtensionDefinition
+ *   - DirectiveDefinition
+ *
  * TypeDefinition :
+ *   - ScalarTypeDefinition
  *   - ObjectTypeDefinition
  *   - InterfaceTypeDefinition
  *   - UnionTypeDefinition
- *   - ScalarTypeDefinition
  *   - EnumTypeDefinition
  *   - InputObjectTypeDefinition
- *   - TypeExtensionDefinition
- *   - MutationDefinition
  */
-function parseTypeDefinition(parser): TypeDefinition {
-  if (!peek(parser, TokenKind.NAME)) {
-    throw unexpected(parser);
+function parseTypeSystemDefinition(parser: Parser): TypeSystemDefinition {
+  if (peek(parser, TokenKind.NAME)) {
+    switch (parser.token.value) {
+      case 'scalar': return parseScalarTypeDefinition(parser);
+      case 'type': return parseObjectTypeDefinition(parser);
+      case 'interface': return parseInterfaceTypeDefinition(parser);
+      case 'union': return parseUnionTypeDefinition(parser);
+      case 'enum': return parseEnumTypeDefinition(parser);
+      case 'input': return parseInputObjectTypeDefinition(parser);
+      case 'extend': return parseTypeExtensionDefinition(parser);
+      case 'directive': return parseDirectiveDefinition(parser);
+      case 'mutation': return parseMutationDefinition(parser);
+      case 'query': return parseQueryDefinition(parser);
+      case 'filter': return parseFilterDefinition(parser);
+      case 'order': return parseOrderDefinition(parser);
+    }
   }
-  switch (parser.token.value) {
-    case 'type':
-      return parseObjectTypeDefinition(parser);
-    case 'interface':
-      return parseInterfaceTypeDefinition(parser);
-    case 'union':
-      return parseUnionTypeDefinition(parser);
-    case 'scalar':
-      return parseScalarTypeDefinition(parser);
-    case 'enum':
-      return parseEnumTypeDefinition(parser);
-    case 'input':
-      return parseInputObjectTypeDefinition(parser);
-    case 'extend':
-      return parseTypeExtensionDefinition(parser);
-    case 'mutation':
-      return parseMutationDefinition(parser);
-    case 'filter':
-      return parseFilterDefinition(parser);
-    case 'order':
-      return parseOrderDefinition(parser);
-    default:
-      throw unexpected(parser);
-  }
+
+  throw unexpected(parser);
+}
+
+
+/**
+ * ScalarTypeDefinition : scalar Name Directives?
+ */
+function parseScalarTypeDefinition(parser: Parser): ScalarTypeDefinition {
+  const start = parser.token.start;
+  expectKeyword(parser, 'scalar');
+  const name = parseName(parser);
+  const directives = parseDirectives(parser);
+  return {
+    kind: SCALAR_TYPE_DEFINITION,
+    name,
+    directives,
+    loc: loc(parser, start),
+  };
 }
 
 /**
- * ObjectTypeDefinition : type Name ImplementsInterfaces? { FieldDefinition+ }
+ * ObjectTypeDefinition :
+ *   - type Name ImplementsInterfaces? Directives? { FieldDefinition+ }
  */
-function parseObjectTypeDefinition(parser): ObjectTypeDefinition {
+function parseObjectTypeDefinition(parser: Parser): ObjectTypeDefinition {
   const start = parser.token.start;
   expectKeyword(parser, 'type');
   const name = parseName(parser);
@@ -612,8 +508,8 @@ function parseObjectTypeDefinition(parser): ObjectTypeDefinition {
     kind: OBJECT_TYPE_DEFINITION,
     name,
     interfaces,
-    fields,
     directives,
+    fields,
     loc: loc(parser, start),
   };
 }
@@ -621,23 +517,21 @@ function parseObjectTypeDefinition(parser): ObjectTypeDefinition {
 /**
  * ImplementsInterfaces : implements NamedType+
  */
-function parseImplementsInterfaces(parser): Array<NamedType> {
+function parseImplementsInterfaces(parser: Parser): Array<NamedType> {
   const types = [];
   if (parser.token.value === 'implements') {
     advance(parser);
     do {
       types.push(parseNamedType(parser));
-    } while (
-      !peek(parser, TokenKind.BRACE_L) &&
-      !peek(parser, TokenKind.AT) );
+    } while (peek(parser, TokenKind.NAME));
   }
   return types;
 }
 
 /**
- * FieldDefinition : Name ArgumentsDefinition? : Type
+ * FieldDefinition : Name ArgumentsDefinition? : Type Directives?
  */
-function parseFieldDefinition(parser): FieldDefinition {
+function parseFieldDefinition(parser: Parser): FieldDefinition {
   const start = parser.token.start;
   const name = parseName(parser);
   const args = parseArgumentDefs(parser);
@@ -657,7 +551,7 @@ function parseFieldDefinition(parser): FieldDefinition {
 /**
  * ArgumentsDefinition : ( InputValueDefinition+ )
  */
-function parseArgumentDefs(parser): Array<InputValueDefinition> {
+function parseArgumentDefs(parser: Parser): Array<InputValueDefinition> {
   if (!peek(parser, TokenKind.PAREN_L)) {
     return [];
   }
@@ -665,30 +559,32 @@ function parseArgumentDefs(parser): Array<InputValueDefinition> {
 }
 
 /**
- * InputValueDefinition : Name : Type = DefaultValue?
+ * InputValueDefinition : Name : Type DefaultValue? Directives?
  */
-function parseInputValueDef(parser): InputValueDefinition {
+function parseInputValueDef(parser: Parser): InputValueDefinition {
   const start = parser.token.start;
   const name = parseName(parser);
   expect(parser, TokenKind.COLON);
-  const type = parseType(parser, false);
+  const type = parseType(parser);
   let defaultValue = null;
   if (skip(parser, TokenKind.EQUALS)) {
     defaultValue = parseConstValue(parser);
   }
+  const directives = parseDirectives(parser);
   return {
     kind: INPUT_VALUE_DEFINITION,
     name,
     type,
     defaultValue,
+    directives,
     loc: loc(parser, start),
   };
 }
 
 /**
- * InterfaceTypeDefinition : interface Name { FieldDefinition+ }
+ * InterfaceTypeDefinition : interface Name Directives? { FieldDefinition+ }
  */
-function parseInterfaceTypeDefinition(parser): InterfaceTypeDefinition {
+function parseInterfaceTypeDefinition(parser: Parser): InterfaceTypeDefinition {
   const start = parser.token.start;
   expectKeyword(parser, 'interface');
   const name = parseName(parser);
@@ -702,27 +598,27 @@ function parseInterfaceTypeDefinition(parser): InterfaceTypeDefinition {
   return {
     kind: INTERFACE_TYPE_DEFINITION,
     name,
-    fields,
     directives,
+    fields,
     loc: loc(parser, start),
   };
 }
 
 /**
- * UnionTypeDefinition : union Name = UnionMembers
+ * UnionTypeDefinition : union Name Directives? = UnionMembers
  */
-function parseUnionTypeDefinition(parser): UnionTypeDefinition {
+function parseUnionTypeDefinition(parser: Parser): UnionTypeDefinition {
   const start = parser.token.start;
   expectKeyword(parser, 'union');
   const name = parseName(parser);
+  const directives = parseDirectives(parser);
   expect(parser, TokenKind.EQUALS);
   const types = parseUnionMembers(parser);
-  const directives = parseDirectives(parser);
   return {
     kind: UNION_TYPE_DEFINITION,
     name,
-    types,
     directives,
+    types,
     loc: loc(parser, start),
   };
 }
@@ -732,7 +628,7 @@ function parseUnionTypeDefinition(parser): UnionTypeDefinition {
  *   - NamedType
  *   - UnionMembers | NamedType
  */
-function parseUnionMembers(parser): Array<NamedType> {
+function parseUnionMembers(parser: Parser): Array<NamedType> {
   const members = [];
   do {
     members.push(parseNamedType(parser));
@@ -741,26 +637,13 @@ function parseUnionMembers(parser): Array<NamedType> {
 }
 
 /**
- * ScalarTypeDefinition : scalar Name
+ * EnumTypeDefinition : enum Name Directives? { EnumValueDefinition+ }
  */
-function parseScalarTypeDefinition(parser): ScalarTypeDefinition {
-  const start = parser.token.start;
-  expectKeyword(parser, 'scalar');
-  const name = parseName(parser);
-  return {
-    kind: SCALAR_TYPE_DEFINITION,
-    name,
-    loc: loc(parser, start),
-  };
-}
-
-/**
- * EnumTypeDefinition : enum Name { EnumValueDefinition+ }
- */
-function parseEnumTypeDefinition(parser): EnumTypeDefinition {
+function parseEnumTypeDefinition(parser: Parser): EnumTypeDefinition {
   const start = parser.token.start;
   expectKeyword(parser, 'enum');
   const name = parseName(parser);
+  const directives = parseDirectives(parser);
   const values = many(
     parser,
     TokenKind.BRACE_L,
@@ -770,33 +653,39 @@ function parseEnumTypeDefinition(parser): EnumTypeDefinition {
   return {
     kind: ENUM_TYPE_DEFINITION,
     name,
+    directives,
     values,
     loc: loc(parser, start),
   };
 }
 
 /**
- * EnumValueDefinition : EnumValue
+ * EnumValueDefinition : EnumValue Directives?
  *
  * EnumValue : Name
  */
-function parseEnumValueDefinition(parser) : EnumValueDefinition {
+function parseEnumValueDefinition(parser: Parser) : EnumValueDefinition {
   const start = parser.token.start;
   const name = parseName(parser);
+  const directives = parseDirectives(parser);
   return {
     kind: ENUM_VALUE_DEFINITION,
     name,
+    directives,
     loc: loc(parser, start),
   };
 }
 
 /**
- * InputObjectTypeDefinition : input Name { InputValueDefinition+ }
+ * InputObjectTypeDefinition : input Name Directives? { InputValueDefinition+ }
  */
-function parseInputObjectTypeDefinition(parser): InputObjectTypeDefinition {
+function parseInputObjectTypeDefinition(
+  parser: Parser
+): InputObjectTypeDefinition {
   const start = parser.token.start;
   expectKeyword(parser, 'input');
   const name = parseName(parser);
+  const directives = parseDirectives(parser);
   const fields = any(
     parser,
     TokenKind.BRACE_L,
@@ -806,6 +695,7 @@ function parseInputObjectTypeDefinition(parser): InputObjectTypeDefinition {
   return {
     kind: INPUT_OBJECT_TYPE_DEFINITION,
     name,
+    directives,
     fields,
     loc: loc(parser, start),
   };
@@ -814,7 +704,7 @@ function parseInputObjectTypeDefinition(parser): InputObjectTypeDefinition {
 /**
  * TypeExtensionDefinition : extend ObjectTypeDefinition
  */
-function parseTypeExtensionDefinition(parser): TypeExtensionDefinition {
+function parseTypeExtensionDefinition(parser: Parser): TypeExtensionDefinition {
   const start = parser.token.start;
   expectKeyword(parser, 'extend');
   const definition = parseObjectTypeDefinition(parser);
@@ -825,7 +715,235 @@ function parseTypeExtensionDefinition(parser): TypeExtensionDefinition {
   };
 }
 
-function parseMutationDefinition(parser): MutationDefinition {
+/**
+ * DirectiveDefinition :
+ *   - directive @ Name ArgumentsDefinition? on DirectiveLocations
+ */
+function parseDirectiveDefinition(parser: Parser): DirectiveDefinition {
+  const start = parser.token.start;
+  expectKeyword(parser, 'directive');
+  expect(parser, TokenKind.AT);
+  const name = parseName(parser);
+  const args = parseArgumentDefs(parser);
+  expectKeyword(parser, 'on');
+  const locations = parseDirectiveLocations(parser);
+  return {
+    kind: DIRECTIVE_DEFINITION,
+    name,
+    arguments: args,
+    locations,
+    loc: loc(parser, start)
+  };
+}
+
+/**
+ * DirectiveLocations :
+ *   - Name
+ *   - DirectiveLocations | Name
+ */
+function parseDirectiveLocations(parser: Parser): Array<Name> {
+  const locations = [];
+  do {
+    locations.push(parseName(parser));
+  } while (skip(parser, TokenKind.PIPE));
+  return locations;
+}
+
+// Core parsing utility functions
+
+type Parser = {
+  source: Source,
+  options: ParseOptions,
+  prevEnd: number,
+  token: Token,
+  _lexToken: () => Token,
+};
+
+/**
+ * Returns the parser object that is used to store state throughout the
+ * process of parsing.
+ */
+function makeParser(source: Source, options: ParseOptions): Parser {
+  const _lexToken = lex(source);
+  return {
+    _lexToken,
+    source,
+    options,
+    prevEnd: 0,
+    token: _lexToken(),
+  };
+}
+
+/**
+ * Returns a location object, used to identify the place in
+ * the source that created a given parsed object.
+ */
+function loc(parser: Parser, start: number) {
+  if (parser.options.noLocation) {
+    return null;
+  }
+  if (parser.options.noSource) {
+    return { start, end: parser.prevEnd };
+  }
+  return { start, end: parser.prevEnd, source: parser.source };
+}
+
+/**
+ * Moves the internal parser object to the next lexed token.
+ */
+function advance(parser: Parser): void {
+  const prevEnd = parser.token.end;
+  parser.prevEnd = prevEnd;
+  parser.token = parser._lexToken(prevEnd);
+}
+
+/**
+ * Determines if the next token is of a given kind
+ */
+function peek(parser: Parser, kind: number): boolean {
+  return parser.token.kind === kind;
+}
+
+/**
+ * If the next token is of the given kind, return true after advancing
+ * the parser. Otherwise, do not change the parser state and return false.
+ */
+function skip(parser: Parser, kind: number): boolean {
+  const match = parser.token.kind === kind;
+  if (match) {
+    advance(parser);
+  }
+  return match;
+}
+
+/**
+ * If the next token is of the given kind, return that token after advancing
+ * the parser. Otherwise, do not change the parser state and throw an error.
+ */
+function expect(parser: Parser, kind: number): Token {
+  const token = parser.token;
+  if (token.kind === kind) {
+    advance(parser);
+    return token;
+  }
+  throw syntaxError(
+    parser.source,
+    token.start,
+    `Expected ${getTokenKindDesc(kind)}, found ${getTokenDesc(token)}`
+  );
+}
+
+/**
+ * If the next token is a keyword with the given value, return that token after
+ * advancing the parser. Otherwise, do not change the parser state and return
+ * false.
+ */
+function expectKeyword(parser: Parser, value: string): Token {
+  const token = parser.token;
+  if (token.kind === TokenKind.NAME && token.value === value) {
+    advance(parser);
+    return token;
+  }
+  throw syntaxError(
+    parser.source,
+    token.start,
+    `Expected "${value}", found ${getTokenDesc(token)}`
+  );
+}
+
+/**
+ * Helper function for creating an error when an unexpected lexed token
+ * is encountered.
+ */
+function unexpected(parser: Parser, atToken?: ?Token): Error {
+  const token = atToken || parser.token;
+  return syntaxError(
+    parser.source,
+    token.start,
+    `Unexpected ${getTokenDesc(token)}`
+  );
+}
+
+/**
+ * Returns a possibly empty list of parse nodes, determined by
+ * the parseFn. This list begins with a lex token of openKind
+ * and ends with a lex token of closeKind. Advances the parser
+ * to the next lex token after the closing token.
+ */
+function any<T>(
+  parser: Parser,
+  openKind: number,
+  parseFn: (parser: Parser) => T,
+  closeKind: number
+): Array<T> {
+  expect(parser, openKind);
+  const nodes = [];
+  while (!skip(parser, closeKind)) {
+    nodes.push(parseFn(parser));
+  }
+  return nodes;
+}
+
+/**
+ * Returns a non-empty list of parse nodes, determined by
+ * the parseFn. This list begins with a lex token of openKind
+ * and ends with a lex token of closeKind. Advances the parser
+ * to the next lex token after the closing token.
+ */
+function many<T>(
+  parser: Parser,
+  openKind: number,
+  parseFn: (parser: Parser) => T,
+  closeKind: number
+): Array<T> {
+  expect(parser, openKind);
+  const nodes = [ parseFn(parser) ];
+  while (!skip(parser, closeKind)) {
+    nodes.push(parseFn(parser));
+  }
+  return nodes;
+}
+
+
+// Meldio Language Extensions:
+
+const CONNECTION_PREFIXES = [
+  TokenKind.DASH,
+  TokenKind.EQUALS,
+  TokenKind.LESS,
+];
+
+const EDGE_PREFIXES = [
+  TokenKind.EQUALS,
+  TokenKind.LESS,
+];
+
+function atLeastOne<T>(
+  parser: Parser,
+  openKinds: Array<number>,
+  parseFn: (parser: Parser) => T,
+): Array<T> {
+  const token = parser.token;
+  const nodes = [ ];
+
+  while (openKinds.includes(parser.token.kind)) {
+    nodes.push(parseFn(parser));
+  }
+
+  if (!nodes.length) {
+    const expected = openKinds.map(getTokenKindDesc).join(', ');
+    throw syntaxError(
+      parser.source,
+      token.start,
+      `Expected ${expected}, found ${getTokenDesc(token)}`
+    );
+  }
+
+  return nodes;
+}
+
+
+function parseMutationDefinition(parser: Parser): MutationDefinition {
   const start = parser.token.start;
   expectKeyword(parser, 'mutation');
   const name = parseName(parser);
@@ -834,7 +952,7 @@ function parseMutationDefinition(parser): MutationDefinition {
   const fields = any(
     parser,
     TokenKind.BRACE_L,
-    parseFieldDefinition,
+    parseMutationFieldDefinition,
     TokenKind.BRACE_R
   );
   return {
@@ -847,7 +965,58 @@ function parseMutationDefinition(parser): MutationDefinition {
   };
 }
 
-function parseFilterDefinition(parser): FilterDefinition {
+function parseMutationFieldDefinition(parser: Parser): MutationFieldDefinition {
+  const start = parser.token.start;
+  const name = parseName(parser);
+  const args = parseArgumentDefs(parser);
+  expect(parser, TokenKind.COLON);
+  const type = parseMutationFieldDefinitionType(parser);
+  const directives = parseDirectives(parser);
+  return {
+    kind: MUTATION_FIELD_DEFINITION,
+    name,
+    arguments: args,
+    type,
+    directives,
+    loc: loc(parser, start),
+  };
+}
+
+/**
+ * MutationFieldType :
+ *   - NamedType
+ *   - ListType
+ *   - NonNullType
+ *   - EdgeType
+ */
+function parseMutationFieldDefinitionType(parser: Parser): MutationFieldType {
+  const start = parser.token.start;
+  let type;
+  if (skip(parser, TokenKind.BRACKET_L)) {
+    type = parseType(parser);
+    expect(parser, TokenKind.BRACKET_R);
+    type = {
+      kind: LIST_TYPE,
+      type,
+      loc: loc(parser, start)
+    };
+  } else if (EDGE_PREFIXES.includes(parser.token.kind)) {
+    type = parseEdgeType(parser);
+  } else {
+    type = parseNamedType(parser);
+  }
+  if (skip(parser, TokenKind.BANG)) {
+    return {
+      kind: NON_NULL_TYPE,
+      type,
+      loc: loc(parser, start)
+    };
+  }
+  return type;
+}
+
+
+function parseFilterDefinition(parser: Parser): FilterDefinition {
   const start = parser.token.start;
   expectKeyword(parser, 'filter');
   expectKeyword(parser, 'on');
@@ -861,15 +1030,8 @@ function parseFilterDefinition(parser): FilterDefinition {
       type,
       loc: loc(parser, start)
     };
-  } else if (parser.token.kind === TokenKind.NAME &&
-             parser.token.value === 'NodeConnection') {
-    type = parseNodeConnectionDefinition(parser, true);
-  } else if (parser.token.kind === TokenKind.NAME &&
-             parser.token.value === 'ScalarConnection') {
-    type = parseScalarConnectionDefinition(parser);
-  } else if (parser.token.kind === TokenKind.NAME &&
-             parser.token.value === 'ObjectConnection') {
-    type = parseObjectConnectionDefinition(parser);
+  } else if (CONNECTION_PREFIXES.includes(parser.token.kind)) {
+    type = parseConnectionType(parser);
   } else {
     throw unexpected(parser);
   }
@@ -889,7 +1051,7 @@ function parseFilterDefinition(parser): FilterDefinition {
   };
 }
 
-function parseFilterCondition(parser): FilterCondition {
+function parseFilterCondition(parser: Parser): FilterCondition {
   const start = parser.token.start;
 
   const key = parseEnumValueDefinition(parser);
@@ -905,7 +1067,7 @@ function parseFilterCondition(parser): FilterCondition {
   };
 }
 
-function parseOrderDefinition(parser): OrderDefinition {
+function parseOrderDefinition(parser: Parser): OrderDefinition {
   const start = parser.token.start;
   expectKeyword(parser, 'order');
   expectKeyword(parser, 'on');
@@ -919,15 +1081,8 @@ function parseOrderDefinition(parser): OrderDefinition {
       type,
       loc: loc(parser, start)
     };
-  } else if (parser.token.kind === TokenKind.NAME &&
-             parser.token.value === 'NodeConnection') {
-    type = parseNodeConnectionDefinition(parser, true);
-  } else if (parser.token.kind === TokenKind.NAME &&
-             parser.token.value === 'ScalarConnection') {
-    type = parseScalarConnectionDefinition(parser);
-  } else if (parser.token.kind === TokenKind.NAME &&
-             parser.token.value === 'ObjectConnection') {
-    type = parseObjectConnectionDefinition(parser);
+  } else if (CONNECTION_PREFIXES.includes(parser.token.kind)) {
+    type = parseConnectionType(parser);
   } else {
     throw unexpected(parser);
   }
@@ -947,7 +1102,7 @@ function parseOrderDefinition(parser): OrderDefinition {
   };
 }
 
-function parseOrderExpression(parser): OrderExpression {
+function parseOrderExpression(parser: Parser): OrderExpression {
   const parseOrderObject = p => parseObject(p, false);
   const start = parser.token.start;
 
@@ -967,150 +1122,188 @@ function parseOrderExpression(parser): OrderExpression {
   };
 }
 
-
-// Core parsing utility functions
-
 /**
- * Returns the parser object that is used to store state throughout the
- * process of parsing.
+ * FieldType :
+ *   - NamedType
+ *   - ListType
+ *   - NonNullType
+ *   - ConnectionType
+ *   - ConnectionJoinType
  */
-function makeParser(source: Source, options: ParseOptions) {
-  const _lexToken = lex(source);
+export function parseFieldDefinitionType(parser: Parser): FieldType {
+  const start = parser.token.start;
+  let type;
+  if (skip(parser, TokenKind.BRACKET_L)) {
+    type = parseType(parser);
+    expect(parser, TokenKind.BRACKET_R);
+    type = {
+      kind: LIST_TYPE,
+      type,
+      loc: loc(parser, start)
+    };
+  } else if (CONNECTION_PREFIXES.includes(parser.token.kind)) {
+    const conns = atLeastOne(parser, CONNECTION_PREFIXES, parseConnectionType);
+    if (conns.length === 1) {
+      type = conns[0];
+    } else {
+      type = {
+        kind: CONNECTION_JOIN_TYPE,
+        connections: conns,
+        loc: loc(parser, start),
+      };
+    }
+  } else {
+    type = parseNamedType(parser);
+  }
+  if (skip(parser, TokenKind.BANG)) {
+    return {
+      kind: NON_NULL_TYPE,
+      type,
+      loc: loc(parser, start)
+    };
+  }
+  return type;
+}
+
+// Possible Connection Token Combinations:
+// ==> NamedType
+// --> NamedType
+// <== NamedType
+// <-- NamedType
+// = NamedType => NamedType
+// - NamedType -> NamedType
+// <= NamedType = NamedType
+// <- NamedType - NamedType
+
+function parseConnectionType(parser: Parser): ConnectionType {
+  const start = parser.token.start;
+  let type;
+  let edgeLabel;
+  let cardinality;
+  let direction;
+
+  if (skip(parser, TokenKind.DASH)) {
+    cardinality = 'SINGULAR';
+    direction = 'OUT';
+  } else if (skip(parser, TokenKind.EQUALS)) {
+    cardinality = 'PLURAL';
+    direction = 'OUT';
+  } else if (skip(parser, TokenKind.LESS)) {
+    direction = 'IN';
+    if (skip(parser, TokenKind.DASH)) {
+      cardinality = 'SINGULAR';
+    } else if (skip(parser, TokenKind.EQUALS)) {
+      cardinality = 'PLURAL';
+    } else {
+      throw unexpected(parser);
+    }
+  } else {
+    throw unexpected(parser);
+  }
+
+  if (peek(parser, TokenKind.NAME)) {
+    edgeLabel = parseNamedType(parser);
+  }
+
+  expect(parser, cardinality === 'PLURAL' ? TokenKind.EQUALS : TokenKind.DASH);
+
+  if (direction === 'OUT') {
+    expect(parser, TokenKind.GREATER);
+  }
+  type = parseNamedType(parser);
+
+
   return {
-    _lexToken,
-    source,
-    options,
-    prevEnd: 0,
-    token: _lexToken(),
+    kind: CONNECTION_TYPE,
+    loc: loc(parser, start),
+    type,
+    edgeLabel,
+    direction,
+    cardinality,
   };
 }
 
-/**
- * Returns a location object, used to identify the place in
- * the source that created a given parsed object.
- */
-function loc(parser, start: number) {
-  if (parser.options.noLocation) {
-    return null;
+// Possible Edge Token Combinations:
+// ==> NamedType
+// = NamedType => NamedType
+// <== NamedType
+// <= NamedType = NamedType
+
+function parseEdgeType(parser: Parser): EdgeType {
+  const start = parser.token.start;
+  let type;
+  let edgeLabel;
+  let direction;
+
+  if (skip(parser, TokenKind.EQUALS)) {
+    direction = 'OUT';
+  } else if (skip(parser, TokenKind.LESS)) {
+    direction = 'IN';
+    expect(parser, TokenKind.EQUALS);
+  } else {
+    throw unexpected(parser);
   }
-  if (parser.options.noSource) {
-    return { start, end: parser.prevEnd };
+
+  if (peek(parser, TokenKind.NAME)) {
+    edgeLabel = parseNamedType(parser);
   }
-  return { start, end: parser.prevEnd, source: parser.source };
-}
 
-/**
- * Moves the internal parser object to the next lexed token.
- */
-function advance(parser): void {
-  const prevEnd = parser.token.end;
-  parser.prevEnd = prevEnd;
-  parser.token = parser._lexToken(prevEnd);
-}
+  expect(parser, TokenKind.EQUALS);
 
-/**
- * Determines if the next token is of a given kind
- */
-function peek(parser, kind: string): boolean {
-  return parser.token.kind === kind;
-}
-
-/**
- * If the next token is of the given kind, return true after advancing
- * the parser. Otherwise, do not change the parser state and return false.
- */
-function skip(parser, kind: string): boolean {
-  const match = parser.token.kind === kind;
-  if (match) {
-    advance(parser);
+  if (direction === 'OUT') {
+    expect(parser, TokenKind.GREATER);
   }
-  return match;
+  type = parseNamedType(parser);
+
+  return {
+    kind: EDGE_TYPE,
+    loc: loc(parser, start),
+    type,
+    edgeLabel,
+    direction,
+  };
 }
 
-/**
- * If the next token is of the given kind, return that token after advancing
- * the parser. Otherwise, do not change the parser state and return false.
- */
-function expect(parser, kind: string): Token {
-  const token = parser.token;
-  if (token.kind === kind) {
-    advance(parser);
-    return token;
+function parseQueryDefinition(parser: Parser): QueryDefinition {
+  const start = parser.token.start;
+  expectKeyword(parser, 'query');
+  const name = parseName(parser);
+  const args = parseArgumentDefs(parser);
+  const directives = parseDirectives(parser);
+  let result;
+  if (skip(parser, TokenKind.COLON)) {
+    result = parseType(parser);
+  } else {
+    result = many(
+      parser,
+      TokenKind.BRACE_L,
+      parseQueryFieldDefinition,
+      TokenKind.BRACE_R
+    );
   }
-  throw syntaxError(
-    parser.source,
-    token.start,
-    `Expected ${getTokenKindDesc(kind)}, found ${getTokenDesc(token)}`
-  );
+  return {
+    kind: QUERY_DEFINITION,
+    loc: loc(parser, start),
+    name,
+    arguments: args,
+    directives,
+    result,
+  };
 }
 
-/**
- * If the next token is a keyword with the given value, return that token after
- * advancing the parser. Otherwise, do not change the parser state and return
- * false.
- */
-function expectKeyword(parser, value: string): Token {
-  const token = parser.token;
-  if (token.kind === TokenKind.NAME && token.value === value) {
-    advance(parser);
-    return token;
-  }
-  throw syntaxError(
-    parser.source,
-    token.start,
-    `Expected "${value}", found ${getTokenDesc(token)}`
-  );
-}
-
-/**
- * Helper function for creating an error when an unexpected lexed token
- * is encountered.
- */
-function unexpected(parser, atToken?: ?Token): Error {
-  const token = atToken || parser.token;
-  return syntaxError(
-    parser.source,
-    token.start,
-    `Unexpected ${getTokenDesc(token)}`
-  );
-}
-
-/**
- * Returns a possibly empty list of parse nodes, determined by
- * the parseFn. This list begins with a lex token of openKind
- * and ends with a lex token of closeKind. Advances the parser
- * to the next lex token after the closing token.
- */
-function any<T>(
-  parser,
-  openKind: string,
-  parseFn: (parser: any) => T,
-  closeKind: string
-): Array<T> {
-  expect(parser, openKind);
-  const nodes = [];
-  while (!skip(parser, closeKind)) {
-    nodes.push(parseFn(parser));
-  }
-  return nodes;
-}
-
-/**
- * Returns a non-empty list of parse nodes, determined by
- * the parseFn. This list begins with a lex token of openKind
- * and ends with a lex token of closeKind. Advances the parser
- * to the next lex token after the closing token.
- */
-function many<T>(
-  parser,
-  openKind: string,
-  parseFn: (parser: any) => T,
-  closeKind: string
-): Array<T> {
-  expect(parser, openKind);
-  const nodes = [ parseFn(parser) ];
-  while (!skip(parser, closeKind)) {
-    nodes.push(parseFn(parser));
-  }
-  return nodes;
+function parseQueryFieldDefinition(parser: Parser): QueryFieldDefinition {
+  const start = parser.token.start;
+  const name = parseName(parser);
+  const args = parseArgumentDefs(parser);
+  expect(parser, TokenKind.COLON);
+  const type = parseType(parser);
+  const directives = parseDirectives(parser);
+  return {
+    kind: QUERY_FIELD_DEFINITION,
+    name,
+    arguments: args,
+    type,
+    directives,
+    loc: loc(parser, start),
+  };
 }

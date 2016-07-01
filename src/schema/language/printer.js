@@ -28,11 +28,14 @@ const printDocASTReducer = {
   OperationDefinition(node) {
     const op = node.operation;
     const name = node.name;
-    const defs = wrap('(', join(node.variableDefinitions, ', '), ')');
+    const varDefs = wrap('(', join(node.variableDefinitions, ', '), ')');
     const directives = join(node.directives, ' ');
     const selectionSet = node.selectionSet;
-    return !name ? selectionSet :
-      join([ op, join([ name, defs ]), directives, selectionSet ], ' ');
+    // Anonymous queries with no directives or variable definitions can use
+    // the query short form.
+    return !name && !directives && !varDefs && op === 'query' ?
+      selectionSet :
+      join([ op, join([ name, varDefs ]), directives, selectionSet ], ' ');
   },
 
   VariableDefinition: ({ variable, type, defaultValue }) =>
@@ -55,9 +58,12 @@ const printDocASTReducer = {
     '...' + name + wrap(' ', join(directives, ' ')),
 
   InlineFragment: ({ typeCondition, directives, selectionSet }) =>
-    `... on ${typeCondition} ` +
-    wrap('', join(directives, ' '), ' ') +
-    selectionSet,
+    join([
+      '...',
+      wrap('on ', typeCondition),
+      join(directives, ' '),
+      selectionSet
+    ], ' '),
 
   FragmentDefinition: ({ name, typeCondition, directives, selectionSet }) =>
     `fragment ${name} on ${typeCondition} ` +
@@ -86,75 +92,164 @@ const printDocASTReducer = {
   ListType: ({ type }) => '[' + type + ']',
   NonNullType: ({ type }) => type + '!',
 
-  // Type Definitions
+  // Type System Definitions
 
-  ObjectTypeDefinition: ({ name, interfaces, fields }) =>
-    'type ' + name + ' ' +
-    wrap('implements ', join(interfaces, ', '), ' ') +
-    block(fields),
+  SchemaDefinition: ({ directives, operationTypes }) =>
+    join([
+      'schema',
+      join(directives, ' '),
+      block(operationTypes),
+    ], ' '),
 
-  FieldDefinition: ({ name, arguments: args, type }) =>
-    name + wrap('(', join(args, ', '), ')') + ': ' + type,
+  OperationTypeDefinition: ({ operation, type }) =>
+    operation + ': ' + type,
 
-  InputValueDefinition: ({ name, type, defaultValue }) =>
-    name + ': ' + type + wrap(' = ', defaultValue),
+  ScalarTypeDefinition: ({ name, directives }) =>
+    join([ 'scalar', name, join(directives, ' ') ], ' '),
 
-  InterfaceTypeDefinition: ({ name, fields }) =>
-    `interface ${name} ${block(fields)}`,
+  ObjectTypeDefinition: ({ name, interfaces, directives, fields }) =>
+    join([
+      'type',
+      name,
+      wrap('implements ', join(interfaces, ', ')),
+      join(directives, ' '),
+      block(fields)
+    ], ' '),
 
-  UnionTypeDefinition: ({ name, types }) =>
-    `union ${name} = ${join(types, ' | ')}`,
+  FieldDefinition: ({ name, arguments: args, type, directives }) =>
+    name +
+    wrap('(', join(args, ', '), ')') +
+    ': ' + type +
+    wrap(' ', join(directives, ' ')),
 
-  ScalarTypeDefinition: ({ name }) =>
-    `scalar ${name}`,
+  InputValueDefinition: ({ name, type, defaultValue, directives }) =>
+    join([
+      name + ': ' + type,
+      wrap('= ', defaultValue),
+      join(directives, ' ')
+    ], ' '),
 
-  EnumTypeDefinition: ({ name, values }) =>
-    `enum ${name} ${block(values)}`,
+  InterfaceTypeDefinition: ({ name, directives, fields }) =>
+    join([
+      'interface',
+      name,
+      join(directives, ' '),
+      block(fields)
+    ], ' '),
 
-  EnumValueDefinition: ({ name }) => name,
+  UnionTypeDefinition: ({ name, directives, types }) =>
+    join([
+      'union',
+      name,
+      join(directives, ' '),
+      '= ' + join(types, ' | ')
+    ], ' '),
 
-  InputObjectTypeDefinition: ({ name, fields }) =>
-    `input ${name} ${block(fields)}`,
+  EnumTypeDefinition: ({ name, directives, values }) =>
+    join([
+      'enum',
+      name,
+      join(directives, ' '),
+      block(values)
+    ], ' '),
+
+  EnumValueDefinition: ({ name, directives }) =>
+    join([ name, join(directives, ' ') ], ' '),
+
+  InputObjectTypeDefinition: ({ name, directives, fields }) =>
+    join([
+      'input',
+      name,
+      join(directives, ' '),
+      block(fields)
+    ], ' '),
 
   TypeExtensionDefinition: ({ definition }) => `extend ${definition}`,
 
-  MutationDefinition: ({ name, arguments: args, fields }) =>
-    `mutation ${name}${wrap('(', join(args, ', '), ')')} ` +
-      `${block(fields)}`,
+  DirectiveDefinition: ({ name, arguments: args, locations }) =>
+    'directive @' + name + wrap('(', join(args, ', '), ')') +
+    ' on ' + join(locations, ' | '),
 
-  NodeConnectionDefinition: ({ type, relatedField, edgeType }) =>
-    type === 'Node' ?
-      `NodeConnection` :
-      `NodeConnection(${type}${
-        wrap(', ', relatedField, '')}${wrap(', ', edgeType, '')})`,
+  MutationDefinition: ({ name, arguments: args, directives, fields }) =>
+    join([
+      'mutation',
+      name,
+      wrap('(', join(args, ', '), ')'),
+      join(directives, ' '),
+      block(fields)
+    ], ' '),
 
-  ObjectConnectionDefinition: ({ type, edgeType }) =>
-    edgeType ?
-      `ObjectConnection(${type}, ${edgeType})` :
-      `ObjectConnection(${type})`,
+  MutationFieldDefinition: ({ name, arguments: args, type, directives }) =>
+    name +
+    wrap('(', join(args, ', '), ')') +
+    ': ' + type +
+    wrap(' ', join(directives, ' ')),
 
-  ScalarConnectionDefinition: ({ type, edgeType }) =>
-    edgeType ?
-      `ScalarConnection(${type}, ${edgeType})` :
-      `ScalarConnection(${type})`,
+  QueryDefinition: ({ name, arguments: args, directives, result }) =>
+    join([
+      'query',
+      name,
+      wrap('(', join(args, ', '), ')'),
+      join(directives, ' '),
+      Array.isArray(result) ?
+        block(result) :
+        ': ' + result,
+    ], ' '),
 
-  EdgeDefinition: ({ type, edgeType }) =>
-    edgeType ?
-      `Edge(${type}, ${edgeType})` :
-      `Edge(${type})`,
+  QueryFieldDefinition: ({ name, arguments: args, type, directives }) =>
+    name +
+    wrap('(', join(args, ', '), ')') +
+    ': ' + type +
+    wrap(' ', join(directives, ' ')),
 
   FilterDefinition: ({ type, conditions }) =>
-    `filter on ${type} ${block(conditions, true)}`,
+    join([
+      'filter',
+      'on',
+      type,
+      block(conditions)
+    ], ' '),
 
   FilterCondition: ({ key, arguments: args, condition }) =>
     `${key}: ${wrap('(', join(args, ', '), ') ')}${condition}`,
 
   OrderDefinition: ({ type, expressions }) =>
-    `order on ${type} ${block(expressions, true)}`,
+    join([
+      'order',
+      'on',
+      type,
+      block(expressions)
+    ], ' '),
 
   OrderExpression: ({ key, expression }) =>
     `${key}: ${wrap('[', join(expression, ', '), ']')}`,
 
+  ConnectionType: ({ type, edgeLabel, direction, cardinality }) => {
+    const leftArrowEnd =
+      direction === 'IN' ?
+        (cardinality === 'SINGULAR' ? '<-' : '<=') :
+        (cardinality === 'SINGULAR' ? '-' : '=');
+    const rightArrowEnd =
+      direction === 'IN' ?
+        (cardinality === 'SINGULAR' ? '-' : '=') :
+        (cardinality === 'SINGULAR' ? '->' : '=>');
+    return join([
+      wrap(leftArrowEnd, edgeLabel, rightArrowEnd) ||
+        `${leftArrowEnd}${rightArrowEnd}`,
+      type
+    ], ' ');
+  },
+
+  ConnectionJoinType: ({ connections }) =>
+    join(connections, ' '),
+
+  EdgeType: ({ type, edgeLabel, direction }) =>
+    join([
+      direction === 'OUT' ?
+        wrap('=', edgeLabel, '=>') || '==>' :
+        wrap('<=', edgeLabel, '=') || '<==',
+      type
+    ], ' '),
 };
 
 /**
@@ -166,13 +261,13 @@ function join(maybeArray, separator) {
 }
 
 /**
- * Given maybeArray, print an empty string if it is null or empty, otherwise
- * print each item on it's own line, wrapped in an indented "{ }" block.
+ * Given array, print each item on its own line, wrapped in an
+ * indented "{ }" block.
  */
-function block(maybeArray, forceCurlies = false) {
-  return length(maybeArray) ?
-    indent('{\n' + join(maybeArray, '\n')) + '\n}' :
-    forceCurlies ? '{}' : '';
+function block(array) {
+  return array && array.length !== 0 ?
+    indent('{\n' + join(array, '\n')) + '\n}' :
+    '{}';
 }
 
 /**
@@ -187,8 +282,4 @@ function wrap(start, maybeString, end) {
 
 function indent(maybeString) {
   return maybeString && maybeString.replace(/\n/g, '\n  ');
-}
-
-function length(maybeArray) {
-  return maybeArray ? maybeArray.length : 0;
 }

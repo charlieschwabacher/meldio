@@ -38,36 +38,46 @@ export const QueryDocumentKeys = {
   ListType: [ 'type' ],
   NonNullType: [ 'type' ],
 
-  ObjectTypeDefinition: [ 'name', 'interfaces', 'fields', 'directives' ],
+  SchemaDefinition: [ 'directives', 'operationTypes' ],
+  OperationTypeDefinition: [ 'type' ],
+
+  ScalarTypeDefinition: [ 'name', 'directives' ],
+  ObjectTypeDefinition: [ 'name', 'interfaces', 'directives', 'fields' ],
   FieldDefinition: [ 'name', 'arguments', 'type', 'directives' ],
-  InputValueDefinition: [ 'name', 'type', 'defaultValue' ],
-  InterfaceTypeDefinition: [ 'name', 'fields', 'directives' ],
-  UnionTypeDefinition: [ 'name', 'types', 'directives' ],
-  ScalarTypeDefinition: [ 'name' ],
-  EnumTypeDefinition: [ 'name', 'values' ],
-  EnumValueDefinition: [ 'name' ],
-  InputObjectTypeDefinition: [ 'name', 'fields' ],
+  InputValueDefinition: [ 'name', 'type', 'defaultValue', 'directives' ],
+  InterfaceTypeDefinition: [ 'name', 'directives', 'fields' ],
+  UnionTypeDefinition: [ 'name', 'directives', 'types' ],
+  EnumTypeDefinition: [ 'name', 'directives', 'values' ],
+  EnumValueDefinition: [ 'name', 'directives' ],
+  InputObjectTypeDefinition: [ 'name', 'directives', 'fields' ],
+
   TypeExtensionDefinition: [ 'definition' ],
 
-  MutationDefinition: [ 'name', 'arguments', 'fields', 'directives' ],
-  NodeConnectionDefinition: [ 'type', 'relatedField', 'edgeType' ],
-  ScalarConnectionDefinition: [ 'type', 'edgeType' ],
-  ObjectConnectionDefinition: [ 'type', 'edgeType' ],
-  EdgeDefinition: [ 'type', 'edgeType' ],
+  DirectiveDefinition: [ 'name', 'arguments', 'locations' ],
+
+  MutationDefinition: [ 'name', 'arguments', 'directives', 'fields' ],
+  MutationFieldDefinition: [ 'name', 'arguments', 'type', 'directives' ],
+
+  QueryDefinition: [ 'name', 'arguments', 'directives', 'result' ],
+  QueryFieldDefinition: [ 'name', 'arguments', 'type', 'directives' ],
 
   FilterDefinition: [ 'type', 'conditions' ],
   FilterCondition: [ 'key', 'arguments', 'condition' ],
+
   OrderDefinition: [ 'type', 'expressions' ],
   OrderExpression: [ 'key', 'expression' ],
-};
 
+  ConnectionType: [ 'type', 'edgeLabel' ],
+  ConnectionJoinType: [ 'connections' ],
+  EdgeType: [ 'type', 'edgeLabel' ],
+};
 
 export const BREAK = {};
 
 /**
  * visit() will walk through an AST using a depth first traversal, calling
  * the visitor's enter function at each node in the traversal, and calling the
- * leave function after visiting that node and all of it's child nodes.
+ * leave function after visiting that node and all of its child nodes.
  *
  * By returning different values from the enter and leave functions, the
  * behavior of the visitor can be altered, including skipping over a sub-tree of
@@ -78,7 +88,7 @@ export const BREAK = {};
  * a new version of the AST with the changes applied will be returned from the
  * visit function.
  *
- *     let editedAST = visit(ast, {
+ *     const editedAST = visit(ast, {
  *       enter(node, key, parent, path, ancestors) {
  *         // @return
  *         //   undefined: no action
@@ -187,8 +197,8 @@ export function visit(root, visitor, keyMap) {
         }
         let editOffset = 0;
         for (let ii = 0; ii < edits.length; ii++) {
-          let editKey = edits[ii][0];
-          const editValue = edits[ii][1];
+          let [ editKey ] = edits[ii];
+          const [ , editValue ] = edits[ii];
           if (inArray) {
             editKey -= editOffset;
           }
@@ -221,7 +231,7 @@ export function visit(root, visitor, keyMap) {
       if (!isNode(node)) {
         throw new Error('Invalid AST Node: ' + JSON.stringify(node));
       }
-      const visitFn = getVisitFn(visitor, isLeaving, node.kind);
+      const visitFn = getVisitFn(visitor, node.kind, isLeaving);
       if (visitFn) {
         result = visitFn.call(visitor, node, key, parent, path, ancestors);
 
@@ -266,7 +276,7 @@ export function visit(root, visitor, keyMap) {
   } while (stack !== undefined);
 
   if (edits.length !== 0) {
-    newRoot = edits[0][1];
+    newRoot = edits[edits.length - 1][1];
   }
 
   return newRoot;
@@ -276,7 +286,93 @@ function isNode(maybeNode) {
   return maybeNode && typeof maybeNode.kind === 'string';
 }
 
-export function getVisitFn(visitor, isLeaving, kind) {
+
+/**
+ * Creates a new visitor instance which delegates to many visitors to run in
+ * parallel. Each visitor will be visited for each node before moving on.
+ *
+ * If a prior visitor edits a node, no following visitors will see that node.
+ */
+export function visitInParallel(visitors) {
+  const skipping = new Array(visitors.length);
+
+  return {
+    enter(node) {
+      for (let i = 0; i < visitors.length; i++) {
+        if (!skipping[i]) {
+          const fn = getVisitFn(visitors[i], node.kind, /* isLeaving */ false);
+          if (fn) {
+            const result = fn.apply(visitors[i], arguments);
+            if (result === false) {
+              skipping[i] = node;
+            } else if (result === BREAK) {
+              skipping[i] = BREAK;
+            } else if (result !== undefined) {
+              return result;
+            }
+          }
+        }
+      }
+    },
+    leave(node) {
+      for (let i = 0; i < visitors.length; i++) {
+        if (!skipping[i]) {
+          const fn = getVisitFn(visitors[i], node.kind, /* isLeaving */ true);
+          if (fn) {
+            const result = fn.apply(visitors[i], arguments);
+            if (result === BREAK) {
+              skipping[i] = BREAK;
+            } else if (result !== undefined && result !== false) {
+              return result;
+            }
+          }
+        } else if (skipping[i] === node) {
+          skipping[i] = null;
+        }
+      }
+    }
+  };
+}
+
+
+/**
+ * Creates a new visitor instance which maintains a provided TypeInfo instance
+ * along with visiting visitor.
+ */
+export function visitWithTypeInfo(typeInfo, visitor) {
+  return {
+    enter(node) {
+      typeInfo.enter(node);
+      const fn = getVisitFn(visitor, node.kind, /* isLeaving */ false);
+      if (fn) {
+        const result = fn.apply(visitor, arguments);
+        if (result !== undefined) {
+          typeInfo.leave(node);
+          if (isNode(result)) {
+            typeInfo.enter(result);
+          }
+        }
+        return result;
+      }
+    },
+    leave(node) {
+      const fn = getVisitFn(visitor, node.kind, /* isLeaving */ true);
+      let result;
+      if (fn) {
+        result = fn.apply(visitor, arguments);
+      }
+      typeInfo.leave(node);
+      return result;
+    }
+  };
+}
+
+
+/**
+ * Given a visitor instance, if it is leaving or not, and a node kind, return
+ * the function the visitor runtime should call.
+ */
+function getVisitFn(visitor, kind, isLeaving) {
   const kindVisitor = visitor[kind];
   if (kindVisitor) {
     if (!isLeaving && typeof kindVisitor === 'function') {
@@ -289,18 +385,18 @@ export function getVisitFn(visitor, isLeaving, kind) {
       // { Kind: { enter() {}, leave() {} } }
       return kindSpecificVisitor;
     }
-    return;
-  }
-  const specificVisitor = isLeaving ? visitor.leave : visitor.enter;
-  if (specificVisitor) {
-    if (typeof specificVisitor === 'function') {
-      // { enter() {}, leave() {} }
-      return specificVisitor;
-    }
-    const specificKindVisitor = specificVisitor[kind];
-    if (typeof specificKindVisitor === 'function') {
-      // { enter: { Kind() {} }, leave: { Kind() {} } }
-      return specificKindVisitor;
+  } else {
+    const specificVisitor = isLeaving ? visitor.leave : visitor.enter;
+    if (specificVisitor) {
+      if (typeof specificVisitor === 'function') {
+        // { enter() {}, leave() {} }
+        return specificVisitor;
+      }
+      const specificKindVisitor = specificVisitor[kind];
+      if (typeof specificKindVisitor === 'function') {
+        // { enter: { Kind() {} }, leave: { Kind() {} } }
+        return specificKindVisitor;
+      }
     }
   }
 }

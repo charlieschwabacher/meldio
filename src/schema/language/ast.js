@@ -44,21 +44,33 @@ export type Node = Name
                  | ObjectValue
                  | ObjectField
                  | Directive
+                 | NamedType
                  | ListType
                  | NonNullType
+                 | SchemaDefinition
+                 | OperationTypeDefinition
+                 | ScalarTypeDefinition
                  | ObjectTypeDefinition
                  | FieldDefinition
                  | InputValueDefinition
                  | InterfaceTypeDefinition
                  | UnionTypeDefinition
-                 | ScalarTypeDefinition
                  | EnumTypeDefinition
                  | EnumValueDefinition
                  | InputObjectTypeDefinition
                  | TypeExtensionDefinition
+                 | DirectiveDefinition
+                 | ConnectionType
+                 | ConnectionJoinType
+                 | EdgeType
                  | MutationDefinition
+                 | MutationFieldDefinition
+                 | QueryDefinition
+                 | QueryFieldDefinition
                  | FilterDefinition
+                 | FilterCondition
                  | OrderDefinition
+                 | OrderExpression
 
 // Name
 
@@ -78,18 +90,20 @@ export type Document = {
 
 export type Definition = OperationDefinition
                        | FragmentDefinition
-                       | TypeDefinition
+                       | TypeSystemDefinition // experimental non-spec addition.
 
 export type OperationDefinition = {
   kind: 'OperationDefinition';
   loc?: ?Location;
-  // Note: subscription is an experimental non-spec addition.
-  operation: 'query' | 'mutation' | 'subscription';
+  operation: OperationType;
   name?: ?Name;
   variableDefinitions?: ?Array<VariableDefinition>;
   directives?: ?Array<Directive>;
   selectionSet: SelectionSet;
 }
+
+// Note: subscription is an experimental non-spec addition.
+export type OperationType = 'query' | 'mutation' | 'subscription';
 
 export type VariableDefinition = {
   kind: 'VariableDefinition';
@@ -145,7 +159,7 @@ export type FragmentSpread = {
 export type InlineFragment = {
   kind: 'InlineFragment';
   loc?: ?Location;
-  typeCondition: NamedType;
+  typeCondition?: ?NamedType;
   directives?: ?Array<Directive>;
   selectionSet: SelectionSet;
 }
@@ -236,10 +250,6 @@ export type Directive = {
 export type Type = NamedType
                  | ListType
                  | NonNullType
-                 | NodeConnectionDefinition
-                 | ScalarConnectionDefinition
-                 | ObjectConnectionDefinition
-                 | EdgeDefinition
 
 export type NamedType = {
   kind: 'NamedType';
@@ -259,24 +269,52 @@ export type NonNullType = {
   type: NamedType | ListType;
 }
 
-// Type Definition
+// Type System Definition
 
-export type TypeDefinition = ObjectTypeDefinition
+export type TypeSystemDefinition = SchemaDefinition
+                                 | TypeDefinition
+                                 | TypeExtensionDefinition
+                                 | DirectiveDefinition
+                                 | MutationDefinition
+                                 | QueryDefinition
+                                 | FilterDefinition
+                                 | OrderDefinition
+
+export type SchemaDefinition = {
+  kind: 'SchemaDefinition';
+  loc?: ?Location;
+  directives: Array<Directive>;
+  operationTypes: Array<OperationTypeDefinition>;
+}
+
+export type OperationTypeDefinition = {
+  kind: 'OperationTypeDefinition';
+  loc?: ?Location;
+  operation: OperationType;
+  type: NamedType;
+}
+
+export type TypeDefinition = ScalarTypeDefinition
+                           | ObjectTypeDefinition
                            | InterfaceTypeDefinition
                            | UnionTypeDefinition
-                           | ScalarTypeDefinition
                            | EnumTypeDefinition
                            | InputObjectTypeDefinition
-                           | TypeExtensionDefinition
-                           | MutationDefinition
+
+export type ScalarTypeDefinition = {
+  kind: 'ScalarTypeDefinition';
+  loc?: ?Location;
+  name: Name;
+  directives?: ?Array<Directive>;
+}
 
 export type ObjectTypeDefinition = {
   kind: 'ObjectTypeDefinition';
   loc?: ?Location;
   name: Name;
   interfaces?: ?Array<NamedType>;
-  fields: Array<FieldDefinition>;
   directives?: ?Array<Directive>;
+  fields: Array<FieldDefinition>;
 }
 
 export type FieldDefinition = {
@@ -284,9 +322,15 @@ export type FieldDefinition = {
   loc?: ?Location;
   name: Name;
   arguments: Array<InputValueDefinition>;
-  type: Type;
+  type: FieldType;
   directives?: ?Array<Directive>;
 }
+
+export type FieldType = NamedType
+                      | ListType
+                      | NonNullType
+                      | ConnectionType
+                      | ConnectionJoinType
 
 export type InputValueDefinition = {
   kind: 'InputValueDefinition';
@@ -294,34 +338,30 @@ export type InputValueDefinition = {
   name: Name;
   type: Type;
   defaultValue?: ?Value;
+  directives?: ?Array<Directive>;
 }
 
 export type InterfaceTypeDefinition = {
   kind: 'InterfaceTypeDefinition';
   loc?: ?Location;
   name: Name;
-  fields: Array<FieldDefinition>;
   directives?: ?Array<Directive>;
+  fields: Array<FieldDefinition>;
 }
 
 export type UnionTypeDefinition = {
   kind: 'UnionTypeDefinition';
   loc?: ?Location;
   name: Name;
-  types: Array<NamedType>;
   directives?: ?Array<Directive>;
-}
-
-export type ScalarTypeDefinition = {
-  kind: 'ScalarTypeDefinition';
-  loc?: ?Location;
-  name: Name;
+  types: Array<NamedType>;
 }
 
 export type EnumTypeDefinition = {
   kind: 'EnumTypeDefinition';
   loc?: ?Location;
   name: Name;
+  directives?: ?Array<Directive>;
   values: Array<EnumValueDefinition>;
 }
 
@@ -329,12 +369,14 @@ export type EnumValueDefinition = {
   kind: 'EnumValueDefinition';
   loc?: ?Location;
   name: Name;
+  directives?: ?Array<Directive>;
 }
 
 export type InputObjectTypeDefinition = {
   kind: 'InputObjectTypeDefinition';
   loc?: ?Location;
   name: Name;
+  directives?: ?Array<Directive>;
   fields: Array<InputValueDefinition>;
 }
 
@@ -342,7 +384,14 @@ export type TypeExtensionDefinition = {
   kind: 'TypeExtensionDefinition';
   loc?: ?Location;
   definition: ObjectTypeDefinition;
-  directives?: ?Array<Directive>;
+}
+
+export type DirectiveDefinition = {
+  kind: 'DirectiveDefinition';
+  loc?: ?Location;
+  name: Name;
+  arguments?: ?Array<InputValueDefinition>;
+  locations: Array<Name>;
 }
 
 export type MutationDefinition = {
@@ -350,7 +399,41 @@ export type MutationDefinition = {
   loc?: ?Location;
   name: Name;
   arguments: Array<InputValueDefinition>;
-  fields: Array<FieldDefinition>;
+  directives?: ?Array<Directive>;
+  fields: Array<MutationFieldDefinition>;
+}
+
+export type MutationFieldDefinition = {
+  kind: 'MutationFieldDefinition';
+  loc?: ?Location;
+  name: Name;
+  arguments: Array<InputValueDefinition>;
+  type: MutationFieldType;
+  directives?: ?Array<Directive>;
+}
+
+export type MutationFieldType = NamedType
+                              | ListType
+                              | NonNullType
+                              | EdgeType
+
+export type QueryDefinition = {
+  kind: 'QueryDefinition';
+  loc?: ?Location;
+  name: Name;
+  arguments: Array<InputValueDefinition>;
+  directives?: ?Array<Directive>;
+  result: QueryResult;
+}
+
+export type QueryResult = Array<QueryFieldDefinition> | Type;
+
+export type QueryFieldDefinition = {
+  kind: 'QueryFieldDefinition';
+  loc?: ?Location;
+  name: Name;
+  arguments: Array<InputValueDefinition>;
+  type: Type;
   directives?: ?Array<Directive>;
 }
 
@@ -359,9 +442,7 @@ export type FilterDefinition = {
   loc?: ?Location;
   type: (
     ListType |
-    NodeConnectionDefinition |
-    ObjectConnectionDefinition |
-    ScalarConnectionDefinition);
+    ConnectionType);
   conditions: Array<FilterCondition>;
 }
 
@@ -378,9 +459,7 @@ export type OrderDefinition = {
   loc?: ?Location;
   type: (
     ListType |
-    NodeConnectionDefinition |
-    ObjectConnectionDefinition |
-    ScalarConnectionDefinition);
+    ConnectionType);
   expressions: Array<OrderExpression>;
 }
 
@@ -391,31 +470,28 @@ export type OrderExpression = {
   expression: Array<ObjectValue>;
 }
 
-export type NodeConnectionDefinition = {
-  kind: 'NodeConnectionDefinition';
+export type ConnectionDirectionEnum = 'IN' | 'OUT';
+export type ConnectionCardinalityEnum = 'SINGULAR' | 'PLURAL';
+
+export type ConnectionType = {
+  kind: 'ConnectionType';
   loc?: ?Location;
   type: NamedType;
-  relatedField?: ?Name;
-  edgeType?: ?NamedType;
+  edgeLabel?: ?NamedType;
+  direction: ConnectionDirectionEnum;
+  cardinality: ConnectionCardinalityEnum;
 }
 
-export type ScalarConnectionDefinition = {
-  kind: 'ScalarConnectionDefinition';
+export type ConnectionJoinType = {
+  kind: 'ConnectionJoinType';
   loc?: ?Location;
-  type: NamedType;
-  edgeType?: ?NamedType;
+  connections: Array<ConnectionType>
 }
 
-export type ObjectConnectionDefinition = {
-  kind: 'ObjectConnectionDefinition';
+export type EdgeType = {
+  kind: 'EdgeType';
   loc?: ?Location;
   type: NamedType;
-  edgeType?: ?NamedType;
-}
-
-export type EdgeDefinition = {
-  kind: 'EdgeDefinition';
-  loc?: ?Location;
-  type: NamedType;
-  edgeType?: ?NamedType;
+  edgeLabel?: ?NamedType;
+  direction: ConnectionDirectionEnum;
 }

@@ -12,8 +12,8 @@ import type { Source } from './source';
 import { syntaxError } from './syntaxError';
 
 /**
- * A representation of a lexed Token. Value is optional, is it is
- * not needed for punctuators like BANG or PAREN_L.
+ * A representation of a lexed Token. Value only appears for non-punctuation
+ * tokens: NAME, INT, FLOAT, and STRING.
  */
 export type Token = {
   kind: number;
@@ -66,10 +66,13 @@ export const TokenKind = {
   PIPE: 13,
   BRACE_R: 14,
   NAME: 15,
-  VARIABLE: 16,
-  INT: 17,
-  FLOAT: 18,
-  STRING: 19,
+  INT: 16,
+  FLOAT: 17,
+  STRING: 18,
+  // Meldio language extension tokens:
+  DASH: 100,
+  LESS: 101,
+  GREATER: 102,
 };
 
 /**
@@ -104,13 +107,15 @@ tokenDescription[TokenKind.BRACE_L] = '{';
 tokenDescription[TokenKind.PIPE] = '|';
 tokenDescription[TokenKind.BRACE_R] = '}';
 tokenDescription[TokenKind.NAME] = 'Name';
-tokenDescription[TokenKind.VARIABLE] = 'Variable';
 tokenDescription[TokenKind.INT] = 'Int';
 tokenDescription[TokenKind.FLOAT] = 'Float';
 tokenDescription[TokenKind.STRING] = 'String';
+// Meldio language extension tokens:
+tokenDescription[TokenKind.DASH] = '-';
+tokenDescription[TokenKind.LESS] = '<';
+tokenDescription[TokenKind.GREATER] = '>';
 
 const charCodeAt = String.prototype.charCodeAt;
-const fromCharCode = String.fromCharCode;
 const slice = String.prototype.slice;
 
 /**
@@ -120,9 +125,20 @@ function makeToken(
   kind: number,
   start: number,
   end: number,
-  value?: any
+  value?: string
 ): Token {
   return { kind, start, end, value };
+}
+
+function printCharCode(code) {
+  return (
+    // NaN/undefined represents access beyond the end of the file.
+    isNaN(code) ? '<EOF>' :
+    // Trust JSON for ASCII.
+    code < 0x007F ? JSON.stringify(String.fromCharCode(code)) :
+    // Otherwise print the escaped form.
+    `"\\u${('00' + code.toString(16).toUpperCase()).slice(-4)}"`
+  );
 }
 
 /**
@@ -137,10 +153,20 @@ function readToken(source: Source, fromPosition: number): Token {
   const bodyLength = body.length;
 
   const position = positionAfterWhitespace(body, fromPosition);
-  const code = charCodeAt.call(body, position);
 
   if (position >= bodyLength) {
     return makeToken(TokenKind.EOF, position, position);
+  }
+
+  const code = charCodeAt.call(body, position);
+
+  // SourceCharacter
+  if (code < 0x0020 && code !== 0x0009 && code !== 0x000A && code !== 0x000D) {
+    throw syntaxError(
+      source,
+      position,
+      `Invalid character ${printCharCode(code)}.`
+    );
   }
 
   switch (code) {
@@ -152,6 +178,15 @@ function readToken(source: Source, fromPosition: number): Token {
     case 40: return makeToken(TokenKind.PAREN_L, position, position + 1);
     // )
     case 41: return makeToken(TokenKind.PAREN_R, position, position + 1);
+    // Meldio language extensions: -
+    // if the next char is a digit, readNumber, otherwise make DASH token
+    case 45:
+      return (
+        charCodeAt.call(body, position + 1) >= 48 &&
+        charCodeAt.call(body, position + 1) <= 57 ?
+          readNumber(source, position, code) :
+          makeToken(TokenKind.DASH, position, position + 1)
+      );
     // .
     case 46:
       if (charCodeAt.call(body, position + 1) === 46 &&
@@ -161,8 +196,12 @@ function readToken(source: Source, fromPosition: number): Token {
       break;
     // :
     case 58: return makeToken(TokenKind.COLON, position, position + 1);
+    // Meldio language extensions: <
+    case 60: return makeToken(TokenKind.LESS, position, position + 1);
     // =
     case 61: return makeToken(TokenKind.EQUALS, position, position + 1);
+    // Meldio language extensions: -
+    case 62: return makeToken(TokenKind.GREATER, position, position + 1);
     // @
     case 64: return makeToken(TokenKind.AT, position, position + 1);
     // [
@@ -175,22 +214,18 @@ function readToken(source: Source, fromPosition: number): Token {
     case 124: return makeToken(TokenKind.PIPE, position, position + 1);
     // }
     case 125: return makeToken(TokenKind.BRACE_R, position, position + 1);
-    // A-Z
+    // A-Z _ a-z
     case 65: case 66: case 67: case 68: case 69: case 70: case 71: case 72:
     case 73: case 74: case 75: case 76: case 77: case 78: case 79: case 80:
     case 81: case 82: case 83: case 84: case 85: case 86: case 87: case 88:
     case 89: case 90:
-    // _
     case 95:
-    // a-z
     case 97: case 98: case 99: case 100: case 101: case 102: case 103: case 104:
     case 105: case 106: case 107: case 108: case 109: case 110: case 111:
     case 112: case 113: case 114: case 115: case 116: case 117: case 118:
     case 119: case 120: case 121: case 122:
       return readName(source, position);
-    // -
-    case 45:
-    // 0-9
+    // - 0-9
     case 48: case 49: case 50: case 51: case 52:
     case 53: case 54: case 55: case 56: case 57:
       return readNumber(source, position, code);
@@ -201,7 +236,7 @@ function readToken(source: Source, fromPosition: number): Token {
   throw syntaxError(
     source,
     position,
-    `Unexpected character "${fromCharCode(code)}".`
+    `Unexpected character ${printCharCode(code)}.`
   );
 }
 
@@ -215,14 +250,18 @@ function positionAfterWhitespace(body: string, startPosition: number): number {
   let position = startPosition;
   while (position < bodyLength) {
     let code = charCodeAt.call(body, position);
-    // Skip whitespace
+    // Skip Ignored
     if (
-      code === 32 || // space
-      code === 44 || // comma
-      code === 160 || // '\xa0'
-      code === 0x2028 || // line separator
-      code === 0x2029 || // paragraph separator
-      code > 8 && code < 14 // whitespace
+      // BOM
+      code === 0xFEFF ||
+      // White Space
+      code === 0x0009 || // tab
+      code === 0x0020 || // space
+      // Line Terminator
+      code === 0x000A || // new line
+      code === 0x000D || // carriage return
+      // Comma
+      code === 0x002C
     ) {
       ++position;
     // Skip comments
@@ -230,8 +269,9 @@ function positionAfterWhitespace(body: string, startPosition: number): number {
       ++position;
       while (
         position < bodyLength &&
-        (code = charCodeAt.call(body, position)) &&
-        code !== 10 && code !== 13 && code !== 0x2028 && code !== 0x2029
+        (code = charCodeAt.call(body, position)) !== null &&
+        // SourceCharacter but not LineTerminator
+        (code > 0x001F || code === 0x0009) && code !== 0x000A && code !== 0x000D
       ) {
         ++position;
       }
@@ -250,8 +290,8 @@ function positionAfterWhitespace(body: string, startPosition: number): number {
  * Float: -?(0|[1-9][0-9]*)(\.[0-9]+)?((E|e)(+|-)?[0-9]+)?
  */
 function readNumber(source, start, firstCode) {
-  let code = firstCode;
   const body = source.body;
+  let code = firstCode;
   let position = start;
   let isFloat = false;
 
@@ -265,7 +305,7 @@ function readNumber(source, start, firstCode) {
       throw syntaxError(
         source,
         position,
-        `Invalid number, unexpected digit after 0: "${fromCharCode(code)}".`
+        `Invalid number, unexpected digit after 0: ${printCharCode(code)}.`
       );
     }
   } else {
@@ -315,29 +355,39 @@ function readDigits(source, start, firstCode) {
   throw syntaxError(
     source,
     position,
-    'Invalid number, expected digit but got: ' +
-    (code ? `"${fromCharCode(code)}"` : 'EOF') + '.'
+    `Invalid number, expected digit but got: ${printCharCode(code)}.`
   );
 }
 
 /**
  * Reads a string token from the source file.
  *
- * "([^"\\\u000A\u000D\u2028\u2029]|(\\(u[0-9a-fA-F]{4}|["\\/bfnrt])))*"
+ * "([^"\\\u000A\u000D]|(\\(u[0-9a-fA-F]{4}|["\\/bfnrt])))*"
  */
 function readString(source, start) {
   const body = source.body;
   let position = start + 1;
   let chunkStart = position;
-  let code;
+  let code = 0;
   let value = '';
 
   while (
     position < body.length &&
-    (code = charCodeAt.call(body, position)) &&
-    code !== 34 &&
-    code !== 10 && code !== 13 && code !== 0x2028 && code !== 0x2029
+    (code = charCodeAt.call(body, position)) !== null &&
+    // not LineTerminator
+    code !== 0x000A && code !== 0x000D &&
+    // not Quote (")
+    code !== 34
   ) {
+    // SourceCharacter
+    if (code < 0x0020 && code !== 0x0009) {
+      throw syntaxError(
+        source,
+        position,
+        `Invalid character within String: ${printCharCode(code)}.`
+      );
+    }
+
     ++position;
     if (code === 92) { // \
       value += slice.call(body, chunkStart, position - 1);
@@ -351,7 +401,7 @@ function readString(source, start) {
         case 110: value += '\n'; break;
         case 114: value += '\r'; break;
         case 116: value += '\t'; break;
-        case 117:
+        case 117: // u
           const charCode = uniCharCode(
             charCodeAt.call(body, position + 1),
             charCodeAt.call(body, position + 2),
@@ -362,17 +412,18 @@ function readString(source, start) {
             throw syntaxError(
               source,
               position,
-              'Bad character escape sequence.'
+              'Invalid character escape sequence: ' +
+              `\\u${body.slice(position + 1, position + 5)}.`
             );
           }
-          value += fromCharCode(charCode);
+          value += String.fromCharCode(charCode);
           position += 4;
           break;
         default:
           throw syntaxError(
             source,
             position,
-            'Bad character escape sequence.'
+            `Invalid character escape sequence: \\${String.fromCharCode(code)}.`
           );
       }
       ++position;
@@ -380,7 +431,7 @@ function readString(source, start) {
     }
   }
 
-  if (code !== 34) {
+  if (code !== 34) { // quote (")
     throw syntaxError(source, position, 'Unterminated string.');
   }
 
@@ -411,10 +462,12 @@ function uniCharCode(a, b, c, d) {
  * Returns -1 on error.
  */
 function char2hex(a) {
-  return a >= 48 && a <= 57 ? a - 48 : // 0-9
+  return (
+    a >= 48 && a <= 57 ? a - 48 : // 0-9
     a >= 65 && a <= 70 ? a - 55 : // A-F
     a >= 97 && a <= 102 ? a - 87 : // a-f
-    -1;
+    -1
+  );
 }
 
 /**
@@ -426,10 +479,10 @@ function readName(source, position) {
   const body = source.body;
   const bodyLength = body.length;
   let end = position + 1;
-  let code;
+  let code = 0;
   while (
     end !== bodyLength &&
-    (code = charCodeAt.call(body, end)) &&
+    (code = charCodeAt.call(body, end)) !== null &&
     (
       code === 95 || // _
       code >= 48 && code <= 57 || // 0-9
