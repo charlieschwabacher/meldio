@@ -35,6 +35,19 @@ describe('Printer with Meldio Extensions', () => {
   statusMessage: String
 }
 
+mutation addBar(id: ID!, name: String!) @directive(arg: "Foo") {
+  status: String
+  code: Int
+}
+
+mutation noArgsMutation: String
+
+mutation noArgsMutation: String @withDirective
+
+mutation argsMutation(arg1: String, arg2: Int!): String
+
+mutation argsMutation(arg1: String, arg2: Int!): String @withDirective
+
 type ConnectionsTest {
   connInSingularNoLabel: <-- Foo
   connInPluralNoLabel: <== Foo
@@ -94,9 +107,18 @@ order on =Label=> String {}
 
 query noArgsRootQuery: String
 
-query argsRootQuery(arg1: String, arg2: Int!): String
+query noArgsRootQuery: String @withDirective
+
+query argsRootQuery(arg1: String, arg2: Int!): [String]
+
+query argsRootQuery(arg1: String, arg2: Int!): String @withDirective
 
 query noArgsRootQueryWithFields {
+  foo: String!
+  bar: [Bar!]!
+}
+
+query noArgsRootQueryWithFields @withDirective(foo: "BAR") {
   foo: String!
   bar: [Bar!]!
 }
@@ -104,6 +126,11 @@ query noArgsRootQueryWithFields {
 query argsRootQueryWithFields(arg1: String, arg2: Int!) {
   foo: String!
   bar: [Bar!]!
+}
+
+query argsRootQueryWithFields(arg1: String, arg2: Int!) @withDirective(foo: "BAR") {
+  foo: String!
+  bar: [Bar!]! @withFieldDirective
 }
 `);
 

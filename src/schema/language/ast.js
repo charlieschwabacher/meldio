@@ -394,13 +394,17 @@ export type DirectiveDefinition = {
   locations: Array<Name>;
 }
 
+export type ResultEnum = 'TYPE' | 'FIELDS';
+
 export type MutationDefinition = {
   kind: 'MutationDefinition';
   loc?: ?Location;
   name: Name;
   arguments: Array<InputValueDefinition>;
   directives?: ?Array<Directive>;
-  fields: Array<MutationFieldDefinition>;
+  result: ResultEnum;
+  type?: ?Type;
+  fields?: ?Array<MutationFieldDefinition>;
 }
 
 export type MutationFieldDefinition = {
@@ -423,10 +427,10 @@ export type QueryDefinition = {
   name: Name;
   arguments: Array<InputValueDefinition>;
   directives?: ?Array<Directive>;
-  result: QueryResult;
+  result: ResultEnum;
+  type?: ?Type;
+  fields?: ?Array<QueryFieldDefinition>;
 }
-
-export type QueryResult = Array<QueryFieldDefinition> | Type;
 
 export type QueryFieldDefinition = {
   kind: 'QueryFieldDefinition';
@@ -440,9 +444,7 @@ export type QueryFieldDefinition = {
 export type FilterDefinition = {
   kind: 'FilterDefinition';
   loc?: ?Location;
-  type: (
-    ListType |
-    ConnectionType);
+  type: (ListType | ConnectionType);
   conditions: Array<FilterCondition>;
 }
 
@@ -457,9 +459,7 @@ export type FilterCondition = {
 export type OrderDefinition = {
   kind: 'OrderDefinition';
   loc?: ?Location;
-  type: (
-    ListType |
-    ConnectionType);
+  type: (ListType | ConnectionType);
   expressions: Array<OrderExpression>;
 }
 

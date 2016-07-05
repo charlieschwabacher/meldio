@@ -948,19 +948,35 @@ function parseMutationDefinition(parser: Parser): MutationDefinition {
   expectKeyword(parser, 'mutation');
   const name = parseName(parser);
   const args = parseArgumentDefs(parser);
-  const directives = parseDirectives(parser);
-  const fields = any(
-    parser,
-    TokenKind.BRACE_L,
-    parseMutationFieldDefinition,
-    TokenKind.BRACE_R
-  );
+
+  let result;
+  let type = null;
+  let fields = null;
+  let directives;
+
+  if (skip(parser, TokenKind.COLON)) {
+    result = 'TYPE';
+    type = parseType(parser);
+    directives = parseDirectives(parser);
+  } else {
+    result = 'FIELDS';
+    directives = parseDirectives(parser);
+    fields = any(
+      parser,
+      TokenKind.BRACE_L,
+      parseMutationFieldDefinition,
+      TokenKind.BRACE_R
+    );
+  }
+
   return {
     kind: MUTATION_DEFINITION,
     name,
     arguments: args,
-    fields,
     directives,
+    result,
+    type,
+    fields,
     loc: loc(parser, start),
   };
 }
@@ -1276,24 +1292,35 @@ function parseQueryDefinition(parser: Parser): QueryDefinition {
   expectKeyword(parser, 'query');
   const name = parseName(parser);
   const args = parseArgumentDefs(parser);
-  const directives = parseDirectives(parser);
+
   let result;
+  let type = null;
+  let fields = null;
+  let directives;
+
   if (skip(parser, TokenKind.COLON)) {
-    result = parseType(parser);
+    result = 'TYPE';
+    type = parseType(parser);
+    directives = parseDirectives(parser);
   } else {
-    result = many(
+    result = 'FIELDS';
+    directives = parseDirectives(parser);
+    fields = many(
       parser,
       TokenKind.BRACE_L,
       parseQueryFieldDefinition,
       TokenKind.BRACE_R
     );
   }
+
   return {
     kind: QUERY_DEFINITION,
     name,
     arguments: args,
     directives,
     result,
+    type,
+    fields,
     loc: loc(parser, start),
   };
 }

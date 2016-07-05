@@ -170,13 +170,13 @@ const printDocASTReducer = {
     'directive @' + name + wrap('(', join(args, ', '), ')') +
     ' on ' + join(locations, ' | '),
 
-  MutationDefinition: ({ name, arguments: args, directives, fields }) =>
-    join([
-      'mutation',
-      name + wrap('(', join(args, ', '), ')'),
-      join(directives, ' '),
-      block(fields)
-    ], ' '),
+  MutationDefinition:
+    ({ name, arguments: args, directives, result, type, fields }) =>
+      'mutation ' + name + wrap('(', join(args, ', '), ')') + (
+        result === 'TYPE' ?
+        ': ' + type + wrap(' ', join(directives, ' ')) :
+        wrap(' ', join(directives, ' ')) + ' ' + block(fields)
+      ),
 
   MutationFieldDefinition: ({ name, arguments: args, type, directives }) =>
     name +
@@ -184,15 +184,13 @@ const printDocASTReducer = {
     ': ' + type +
     wrap(' ', join(directives, ' ')),
 
-  QueryDefinition: ({ name, arguments: args, directives, result }) =>
-    join([
-      'query',
-      name + wrap('(', join(args, ', '), ')'),
-      join(directives, ' '),
-    ], ' ') +
-    (Array.isArray(result) ?
-      ' ' + block(result) :
-      ': ' + result),
+  QueryDefinition:
+    ({ name, arguments: args, directives, result, type, fields }) =>
+      'query ' + name + wrap('(', join(args, ', '), ')') + (
+        result === 'TYPE' ?
+          ': ' + type + wrap(' ', join(directives, ' ')) :
+          wrap(' ', join(directives, ' ')) + ' ' + block(fields)
+      ),
 
   QueryFieldDefinition: ({ name, arguments: args, type, directives }) =>
     name + wrap('(', join(args, ', '), ')') +

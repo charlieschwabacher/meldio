@@ -55,10 +55,10 @@ export const QueryDocumentKeys = {
 
   DirectiveDefinition: [ 'name', 'arguments', 'locations' ],
 
-  MutationDefinition: [ 'name', 'arguments', 'directives', 'fields' ],
+  MutationDefinition: [ 'name', 'arguments', 'directives', 'type', 'fields' ],
   MutationFieldDefinition: [ 'name', 'arguments', 'type', 'directives' ],
 
-  QueryDefinition: [ 'name', 'arguments', 'directives', 'result' ],
+  QueryDefinition: [ 'name', 'arguments', 'directives', 'type', 'fields' ],
   QueryFieldDefinition: [ 'name', 'arguments', 'type', 'directives' ],
 
   FilterDefinition: [ 'type', 'conditions' ],
