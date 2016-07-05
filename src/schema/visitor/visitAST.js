@@ -1,38 +1,10 @@
-/**
- *  Copyright (c) 2015, Facebook, Inc.
- *  All rights reserved.
- *
- *  This source code is licensed under the BSD-style license found in the
- *  LICENSE file in the root directory of this source tree. An additional grant
- *  of patent rights can be found in the PATENTS file in the same directory.
- */
-
 import { visit, QueryDocumentKeys } from '../language/visitor';
 
 
 export const SchemaKeys = {
-  Document: [ 'definitions' ],
+  Name: QueryDocumentKeys.Name,
 
-  ObjectTypeDefinition: QueryDocumentKeys.ObjectTypeDefinition,
-  FieldDefinition: QueryDocumentKeys.FieldDefinition,
-  InputValueDefinition: QueryDocumentKeys.InputValueDefinition,
-  InterfaceTypeDefinition: QueryDocumentKeys.InterfaceTypeDefinition,
-  UnionTypeDefinition: QueryDocumentKeys.UnionTypeDefinition,
-  ScalarTypeDefinition: QueryDocumentKeys.ScalarTypeDefinition,
-  EnumTypeDefinition: QueryDocumentKeys.EnumTypeDefinition,
-  EnumValueDefinition: QueryDocumentKeys.EnumValueDefinition,
-  InputObjectTypeDefinition: QueryDocumentKeys.InputObjectTypeDefinition,
-  TypeExtensionDefinition: QueryDocumentKeys.TypeExtensionDefinition,
-  MutationDefinition: QueryDocumentKeys.MutationDefinition,
-  NodeConnectionDefinition: QueryDocumentKeys.NodeConnectionDefinition,
-  ScalarConnectionDefinition: QueryDocumentKeys.ScalarConnectionDefinition,
-  ObjectConnectionDefinition: QueryDocumentKeys.ObjectConnectionDefinition,
-  EdgeDefinition: QueryDocumentKeys.EdgeDefinition,
-  Directive: QueryDocumentKeys.Directive,
-  FilterDefinition: QueryDocumentKeys.FilterDefinition,
-  FilterCondition: QueryDocumentKeys.FilterCondition,
-  OrderDefinition: QueryDocumentKeys.OrderDefinition,
-  OrderExpression: QueryDocumentKeys.OrderExpression,
+  Document: QueryDocumentKeys.Document,
 
   IntValue: QueryDocumentKeys.IntValue,
   FloatValue: QueryDocumentKeys.FloatValue,
@@ -43,10 +15,37 @@ export const SchemaKeys = {
   ObjectValue: QueryDocumentKeys.ObjectValue,
   ObjectField: QueryDocumentKeys.ObjectField,
 
-  Name: QueryDocumentKeys.Name,
+  Directive: QueryDocumentKeys.Directive,
+
   NamedType: QueryDocumentKeys.NamedType,
   ListType: QueryDocumentKeys.ListType,
   NonNullType: QueryDocumentKeys.NonNullType,
+
+  ScalarTypeDefinition: QueryDocumentKeys.ScalarTypeDefinition,
+  ObjectTypeDefinition: QueryDocumentKeys.ObjectTypeDefinition,
+  FieldDefinition: QueryDocumentKeys.FieldDefinition,
+  InputValueDefinition: QueryDocumentKeys.InputValueDefinition,
+  InterfaceTypeDefinition: QueryDocumentKeys.InterfaceTypeDefinition,
+  UnionTypeDefinition: QueryDocumentKeys.UnionTypeDefinition,
+  EnumTypeDefinition: QueryDocumentKeys.EnumTypeDefinition,
+  EnumValueDefinition: QueryDocumentKeys.EnumValueDefinition,
+  InputObjectTypeDefinition: QueryDocumentKeys.InputObjectTypeDefinition,
+
+  TypeExtensionDefinition: QueryDocumentKeys.TypeExtensionDefinition,
+
+  DirectiveDefinition: QueryDocumentKeys.DirectiveDefinition,
+
+  MutationDefinition: QueryDocumentKeys.MutationDefinition,
+  MutationFieldDefinition: QueryDocumentKeys.MutationFieldDefinition,
+  QueryDefinition: QueryDocumentKeys.QueryDefinition,
+  QueryFieldDefinition: QueryDocumentKeys.QueryFieldDefinition,
+  FilterDefinition: QueryDocumentKeys.FilterDefinition,
+  FilterCondition: QueryDocumentKeys.FilterCondition,
+  OrderDefinition: QueryDocumentKeys.OrderDefinition,
+  OrderExpression: QueryDocumentKeys.OrderExpression,
+  ConnectionType: QueryDocumentKeys.ConnectionType,
+  ConnectionJoinType: QueryDocumentKeys.ConnectionJoinType,
+  EdgeType: QueryDocumentKeys.EdgeType,
 };
 
 export function visitAST(root, visitor, keys) {
