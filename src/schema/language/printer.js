@@ -173,8 +173,7 @@ const printDocASTReducer = {
   MutationDefinition: ({ name, arguments: args, directives, fields }) =>
     join([
       'mutation',
-      name,
-      wrap('(', join(args, ', '), ')'),
+      name + wrap('(', join(args, ', '), ')'),
       join(directives, ' '),
       block(fields)
     ], ' '),
@@ -188,17 +187,15 @@ const printDocASTReducer = {
   QueryDefinition: ({ name, arguments: args, directives, result }) =>
     join([
       'query',
-      name,
-      wrap('(', join(args, ', '), ')'),
+      name + wrap('(', join(args, ', '), ')'),
       join(directives, ' '),
-      Array.isArray(result) ?
-        block(result) :
-        ': ' + result,
-    ], ' '),
+    ], ' ') +
+    (Array.isArray(result) ?
+      ' ' + block(result) :
+      ': ' + result),
 
   QueryFieldDefinition: ({ name, arguments: args, type, directives }) =>
-    name +
-    wrap('(', join(args, ', '), ')') +
+    name + wrap('(', join(args, ', '), ')') +
     ': ' + type +
     wrap(' ', join(directives, ' ')),
 

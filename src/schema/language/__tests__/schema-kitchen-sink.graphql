@@ -14,18 +14,35 @@ type Foo implements Bar {
   six(argument: InputType = {key: "value"}): Type
 }
 
+type AnnotatedObject @onObject(arg: "value") {
+  annotatedField(arg: Type = "default" @onArg): Type @onField
+}
+
 interface Bar {
   one: Type
   four(argument: String = "string"): String
 }
 
+interface AnnotatedInterface @onInterface {
+  annotatedField(arg: Type @onArg): Type @onField
+}
+
 union Feed = Story | Article | Advert
 
+union AnnotatedUnion @onUnion = A | B
+
 scalar CustomScalar
+
+scalar AnnotatedScalar @onScalar
 
 enum Site {
   DESKTOP
   MOBILE
+}
+
+enum AnnotatedEnum @onEnum {
+  ANNOTATED_VALUE @onEnumValue
+  OTHER_VALUE
 }
 
 input InputType {
@@ -33,64 +50,21 @@ input InputType {
   answer: Int = 42
 }
 
+input AnnotatedInput @onInputObjectType {
+  annotatedField: Type @onField
+}
+
 extend type Foo {
   seven(argument: [String]): Type
 }
 
-mutation addFoo(id: ID!, name: String!) {
-  newFoo: Edge(Foo)
-  newFooWithEdge: Edge(Foo, FooEdge)
-  statusMessage: String
-}
+extend type Foo @onType {}
 
-type ConnectionsTest {
-  nodeConnection: NodeConnection(Foo, baz)
-  nodeConnectionWithEdge: NodeConnection(Foo, baz, FooEdge)
-  objConnection: ObjectConnection(Foo)
-  objConnectionWithEdge: ObjectConnection(Foo, FooEdge)
-  scalarConnection: ScalarConnection(Int)
-  scalarConnectionWithEdge: ScalarConnection(Int, IntEdge)
-}
+type NoFields {}
 
-filter on NodeConnection(Foo) {
-  ONE: {node: {three: {eq: 1}}}
-  TWO: {node: {three: {eq: 2}}}
-  THREE: {node: {three: {eq: 3}}}
-  SOME: (number: Int) {node: {three: {eq: $number}}}
-  ANY: {}
-}
+directive @skip(if: Boolean!) on FIELD | FRAGMENT_SPREAD | INLINE_FRAGMENT
 
-order on NodeConnection(Foo) {}
-
-filter on NodeConnection(Foo, FooEdge) {
-  ONE: {node: {three: {eq: 1}}}
-  TWO: {node: {three: {eq: 2}}}
-  THREE: {node: {three: {eq: 3}}}
-  SOME: (number: Int) {node: {three: {eq: $number}}}
-  ANY: {}
-}
-
-order on NodeConnection(Foo, FooEdge) {
-  ONE: [{node: {one: ASCENDING}}, {node: {two: ASCENDING}}]
-  TWO: [{node: {two: ASCENDING}}, {node: {one: ASCENDING}}]
-}
-
-filter on [Feed] {}
-
-filter on ObjectConnection(Bar) {}
-
-filter on ObjectConnection(Bar, BarEdge) {}
-
-filter on ScalarConnection(String) {}
-
-filter on ScalarConnection(String, StringEdge) {}
-
-order on [Feed] {}
-
-order on ObjectConnection(Bar) {}
-
-order on ObjectConnection(Bar, BarEdge) {}
-
-order on ScalarConnection(String) {}
-
-order on ScalarConnection(String, StringEdge) {}
+directive @include(if: Boolean!)
+  on FIELD
+   | FRAGMENT_SPREAD
+   | INLINE_FRAGMENT

@@ -1178,7 +1178,7 @@ export function parseFieldDefinitionType(parser: Parser): FieldType {
 function parseConnectionType(parser: Parser): ConnectionType {
   const start = parser.token.start;
   let type;
-  let edgeLabel;
+  let edgeLabel = null;
   let cardinality;
   let direction;
 
@@ -1215,11 +1215,11 @@ function parseConnectionType(parser: Parser): ConnectionType {
 
   return {
     kind: CONNECTION_TYPE,
-    loc: loc(parser, start),
     type,
     edgeLabel,
     direction,
     cardinality,
+    loc: loc(parser, start),
   };
 }
 
@@ -1232,7 +1232,7 @@ function parseConnectionType(parser: Parser): ConnectionType {
 function parseEdgeType(parser: Parser): EdgeType {
   const start = parser.token.start;
   let type;
-  let edgeLabel;
+  let edgeLabel = null;
   let direction;
 
   if (skip(parser, TokenKind.EQUALS)) {
@@ -1257,10 +1257,10 @@ function parseEdgeType(parser: Parser): EdgeType {
 
   return {
     kind: EDGE_TYPE,
-    loc: loc(parser, start),
     type,
     edgeLabel,
     direction,
+    loc: loc(parser, start),
   };
 }
 
@@ -1283,11 +1283,11 @@ function parseQueryDefinition(parser: Parser): QueryDefinition {
   }
   return {
     kind: QUERY_DEFINITION,
-    loc: loc(parser, start),
     name,
     arguments: args,
     directives,
     result,
+    loc: loc(parser, start),
   };
 }
 

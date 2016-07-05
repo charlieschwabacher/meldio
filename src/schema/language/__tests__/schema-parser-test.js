@@ -34,43 +34,6 @@ function typeNode(name, loc) {
   };
 }
 
-function typeNodeConnection(type, relatedField, edgeType, loc) {
-  return {
-    kind: 'NodeConnectionDefinition',
-    type,
-    relatedField,
-    edgeType,
-    loc,
-  };
-}
-
-function typeObjectConnection(type, edgeType, loc) {
-  return {
-    kind: 'ObjectConnectionDefinition',
-    type,
-    edgeType,
-    loc,
-  };
-}
-
-function typeScalarConnection(type, edgeType, loc) {
-  return {
-    kind: 'ScalarConnectionDefinition',
-    type,
-    edgeType,
-    loc,
-  };
-}
-
-function typeEdge(type, edgeType, loc) {
-  return {
-    kind: 'EdgeDefinition',
-    type,
-    edgeType,
-    loc,
-  };
-}
-
 function nameNode(name, loc) {
   return {
     kind: 'Name',
@@ -98,6 +61,7 @@ function enumValueNode(name, loc) {
   return {
     kind: 'EnumValueDefinition',
     name: nameNode(name, loc),
+    directives: [],
     loc,
   };
 }
@@ -108,6 +72,7 @@ function inputValueNode(name, type, defaultValue, loc) {
     name,
     type,
     defaultValue,
+    directives: [],
     loc,
   };
 }
@@ -127,6 +92,7 @@ type Hello {
           kind: 'ObjectTypeDefinition',
           name: nameNode('Hello', loc(6, 11)),
           interfaces: [],
+          directives: [],
           fields: [
             fieldNode(
               nameNode('world', loc(16, 21)),
@@ -134,11 +100,44 @@ type Hello {
               loc(16, 29)
             )
           ],
-          directives: [ ],
           loc: loc(1, 31),
         }
       ],
       loc: loc(1, 31),
+    };
+    expect(printJson(doc)).to.equal(printJson(expected));
+  });
+
+  it('Simple extension', () => {
+    const body = `
+extend type Hello {
+  world: String
+}`;
+    const doc = parse(body);
+    const loc = createLocFn(body);
+    const expected = {
+      kind: 'Document',
+      definitions: [
+        {
+          kind: 'TypeExtensionDefinition',
+          definition: {
+            kind: 'ObjectTypeDefinition',
+            name: nameNode('Hello', loc(13, 18)),
+            interfaces: [],
+            directives: [],
+            fields: [
+              fieldNode(
+                nameNode('world', loc(23, 28)),
+                typeNode('String', loc(30, 36)),
+                loc(23, 36)
+              )
+            ],
+            loc: loc(8, 38),
+          },
+          loc: loc(1, 38),
+        }
+      ],
+      loc: loc(1, 38)
     };
     expect(printJson(doc)).to.equal(printJson(expected));
   });
@@ -157,6 +156,7 @@ type Hello {
           kind: 'ObjectTypeDefinition',
           name: nameNode('Hello', loc(6, 11)),
           interfaces: [],
+          directives: [],
           fields: [
             fieldNode(
               nameNode('world', loc(16, 21)),
@@ -168,7 +168,6 @@ type Hello {
               loc(16, 30)
             )
           ],
-          directives: [],
           loc: loc(1, 32),
         }
       ],
@@ -179,7 +178,7 @@ type Hello {
 
 
   it('Simple type inheriting interface', () => {
-    const body = `type Hello implements World { }`;
+    const body = 'type Hello implements World { }';
     const loc = createLocFn(body);
     const doc = parse(body);
     const expected = {
@@ -189,8 +188,8 @@ type Hello {
           kind: 'ObjectTypeDefinition',
           name: nameNode('Hello', loc(5, 10)),
           interfaces: [ typeNode('World', loc(22, 27)) ],
-          fields: [],
           directives: [],
+          fields: [],
           loc: loc(0, 31),
         }
       ],
@@ -200,7 +199,7 @@ type Hello {
   });
 
   it('Simple type inheriting multiple interfaces', () => {
-    const body = `type Hello implements Wo, rld { }`;
+    const body = 'type Hello implements Wo, rld { }';
     const loc = createLocFn(body);
     const doc = parse(body);
     const expected = {
@@ -213,8 +212,8 @@ type Hello {
             typeNode('Wo', loc(22, 24)),
             typeNode('rld', loc(26, 29))
           ],
-          fields: [],
           directives: [],
+          fields: [],
           loc: loc(0, 33),
         }
       ],
@@ -224,7 +223,7 @@ type Hello {
   });
 
   it('Single value enum', () => {
-    const body = `enum Hello { WORLD }`;
+    const body = 'enum Hello { WORLD }';
     const loc = createLocFn(body);
     const doc = parse(body);
     const expected = {
@@ -233,6 +232,7 @@ type Hello {
         {
           kind: 'EnumTypeDefinition',
           name: nameNode('Hello', loc(5, 10)),
+          directives: [],
           values: [ enumValueNode('WORLD', loc(13, 18)) ],
           loc: loc(0, 20),
         }
@@ -243,7 +243,7 @@ type Hello {
   });
 
   it('Double value enum', () => {
-    const body = `enum Hello { WO, RLD }`;
+    const body = 'enum Hello { WO, RLD }';
     const loc = createLocFn(body);
     const doc = parse(body);
     const expected = {
@@ -252,6 +252,7 @@ type Hello {
         {
           kind: 'EnumTypeDefinition',
           name: nameNode('Hello', loc(5, 10)),
+          directives: [],
           values: [
             enumValueNode('WO', loc(13, 15)),
             enumValueNode('RLD', loc(17, 20)),
@@ -277,6 +278,7 @@ interface Hello {
         {
           kind: 'InterfaceTypeDefinition',
           name: nameNode('Hello', loc(11, 16)),
+          directives: [],
           fields: [
             fieldNode(
               nameNode('world', loc(21, 26)),
@@ -284,7 +286,6 @@ interface Hello {
               loc(21, 34)
             )
           ],
-          directives: [],
           loc: loc(1, 36),
         }
       ],
@@ -307,6 +308,7 @@ type Hello {
           kind: 'ObjectTypeDefinition',
           name: nameNode('Hello', loc(6, 11)),
           interfaces: [],
+          directives: [],
           fields: [
             fieldNodeWithArgs(
               nameNode('world', loc(16, 21)),
@@ -322,7 +324,6 @@ type Hello {
               loc(16, 44)
             )
           ],
-          directives: [],
           loc: loc(1, 46),
         }
       ],
@@ -345,6 +346,7 @@ type Hello {
           kind: 'ObjectTypeDefinition',
           name: nameNode('Hello', loc(6, 11)),
           interfaces: [],
+          directives: [],
           fields: [
             fieldNodeWithArgs(
               nameNode('world', loc(16, 21)),
@@ -364,7 +366,6 @@ type Hello {
               loc(16, 51)
             )
           ],
-          directives: [],
           loc: loc(1, 53),
         }
       ],
@@ -387,6 +388,7 @@ type Hello {
           kind: 'ObjectTypeDefinition',
           name: nameNode('Hello', loc(6, 11)),
           interfaces: [],
+          directives: [],
           fields: [
             fieldNodeWithArgs(
               nameNode('world', loc(16, 21)),
@@ -406,7 +408,6 @@ type Hello {
               loc(16, 47)
             )
           ],
-          directives: [],
           loc: loc(1, 49),
         }
       ],
@@ -429,6 +430,7 @@ type Hello {
           kind: 'ObjectTypeDefinition',
           name: nameNode('Hello', loc(6, 11)),
           interfaces: [],
+          directives: [],
           fields: [
             fieldNodeWithArgs(
               nameNode('world', loc(16, 21)),
@@ -450,7 +452,6 @@ type Hello {
               loc(16, 59)
             )
           ],
-          directives: [],
           loc: loc(1, 61),
         }
       ],
@@ -460,7 +461,7 @@ type Hello {
   });
 
   it('Simple union', () => {
-    const body = `union Hello = World`;
+    const body = 'union Hello = World';
     const doc = parse(body);
     const loc = createLocFn(body);
     const expected = {
@@ -469,8 +470,8 @@ type Hello {
         {
           kind: 'UnionTypeDefinition',
           name: nameNode('Hello', loc(6, 11)),
-          types: [ typeNode('World', loc(14, 19)) ],
           directives: [],
+          types: [ typeNode('World', loc(14, 19)) ],
           loc: loc(0, 19),
         }
       ],
@@ -480,7 +481,7 @@ type Hello {
   });
 
   it('Union with two types', () => {
-    const body = `union Hello = Wo | Rld`;
+    const body = 'union Hello = Wo | Rld';
     const doc = parse(body);
     const loc = createLocFn(body);
     const expected = {
@@ -489,11 +490,11 @@ type Hello {
         {
           kind: 'UnionTypeDefinition',
           name: nameNode('Hello', loc(6, 11)),
+          directives: [],
           types: [
             typeNode('Wo', loc(14, 16)),
             typeNode('Rld', loc(19, 22)),
           ],
-          directives: [],
           loc: loc(0, 22),
         }
       ],
@@ -503,7 +504,7 @@ type Hello {
   });
 
   it('Scalar', () => {
-    const body = `scalar Hello`;
+    const body = 'scalar Hello';
     const doc = parse(body);
     const loc = createLocFn(body);
     const expected = {
@@ -512,6 +513,7 @@ type Hello {
         {
           kind: 'ScalarTypeDefinition',
           name: nameNode('Hello', loc(7, 12)),
+          directives: [],
           loc: loc(0, 12),
         }
       ],
@@ -533,6 +535,7 @@ input Hello {
         {
           kind: 'InputObjectTypeDefinition',
           name: nameNode('Hello', loc(7, 12)),
+          directives: [],
           fields: [
             inputValueNode(
               nameNode('world', loc(17, 22)),
@@ -557,235 +560,4 @@ input Hello {
     expect(() => parse(body)).to.throw('Error');
   });
 
-  it('NodeConnection field without edge type', () => {
-    const body = `
-type ConnTest {
-  field: NodeConnection(Foo, connTest)
-} `;
-
-    const doc = parse(body);
-    const loc = createLocFn(body);
-    const expected = {
-      kind: 'Document',
-      definitions: [
-        {
-          kind: 'ObjectTypeDefinition',
-          name: nameNode('ConnTest', loc(6, 14)),
-          interfaces: [],
-          fields: [
-            fieldNode(
-              nameNode('field', loc(19, 24)),
-              typeNodeConnection(
-                typeNode('Foo', loc(41, 44)),
-                nameNode('connTest', loc(46, 54)),
-                null,
-                loc(26, 55)
-              ),
-              loc(19, 55)
-            )
-          ],
-          directives: [ ],
-          loc: loc(1, 57),
-        }
-      ],
-      loc: loc(1, 58),
-    };
-    expect(printJson(doc)).to.equal(printJson(expected));
-  });
-
-  it('NodeConnection field with edge type', () => {
-    const body = `
-type ConnTest {
-  field: NodeConnection(Foo, connTest, EdgeType)
-} `;
-
-    const doc = parse(body);
-    const loc = createLocFn(body);
-    const expected = {
-      kind: 'Document',
-      definitions: [
-        {
-          kind: 'ObjectTypeDefinition',
-          name: nameNode('ConnTest', loc(6, 14)),
-          interfaces: [],
-          fields: [
-            fieldNode(
-              nameNode('field', loc(19, 24)),
-              typeNodeConnection(
-                typeNode('Foo', loc(41, 44)),
-                nameNode('connTest', loc(46, 54)),
-                typeNode('EdgeType', loc(56, 64)),
-                loc(26, 65)
-              ),
-              loc(19, 65)
-            )
-          ],
-          directives: [ ],
-          loc: loc(1, 67),
-        }
-      ],
-      loc: loc(1, 68),
-    };
-    expect(printJson(doc)).to.equal(printJson(expected));
-  });
-
-  it('ObjectConnection field without edge type', () => {
-    const body = `
-type ConnTest {
-  field: ObjectConnection(Foo)
-} `;
-
-    const doc = parse(body);
-    const loc = createLocFn(body);
-    const expected = {
-      kind: 'Document',
-      definitions: [
-        {
-          kind: 'ObjectTypeDefinition',
-          name: nameNode('ConnTest', loc(6, 14)),
-          interfaces: [],
-          fields: [
-            fieldNode(
-              nameNode('field', loc(19, 24)),
-              typeObjectConnection(
-                typeNode('Foo', loc(43, 46)),
-                null,
-                loc(26, 47)
-              ),
-              loc(19, 47)
-            )
-          ],
-          directives: [ ],
-          loc: loc(1, 49),
-        }
-      ],
-      loc: loc(1, 50),
-    };
-    expect(printJson(doc)).to.equal(printJson(expected));
-  });
-
-  it('ObjectConnection field with edge type', () => {
-    const body = `
-type ConnTest {
-  field: ObjectConnection(Foo, EdgeType)
-} `;
-
-    const doc = parse(body);
-    const loc = createLocFn(body);
-    const expected = {
-      kind: 'Document',
-      definitions: [
-        {
-          kind: 'ObjectTypeDefinition',
-          name: nameNode('ConnTest', loc(6, 14)),
-          interfaces: [],
-          fields: [
-            fieldNode(
-              nameNode('field', loc(19, 24)),
-              typeObjectConnection(
-                typeNode('Foo', loc(43, 46)),
-                typeNode('EdgeType', loc(48, 56)),
-                loc(26, 57)
-              ),
-              loc(19, 57)
-            )
-          ],
-          directives: [ ],
-          loc: loc(1, 59),
-        }
-      ],
-      loc: loc(1, 60),
-    };
-    expect(printJson(doc)).to.equal(printJson(expected));
-  });
-
-  it('ScalarConnection and Edge fields without edge type', () => {
-    const body = `
-type ConnTest {
-  field: ScalarConnection(Int)
-  edge: Edge(Int)
-} `;
-
-    const doc = parse(body);
-    const loc = createLocFn(body);
-    const expected = {
-      kind: 'Document',
-      definitions: [
-        {
-          kind: 'ObjectTypeDefinition',
-          name: nameNode('ConnTest', loc(6, 14)),
-          interfaces: [],
-          fields: [
-            fieldNode(
-              nameNode('field', loc(19, 24)),
-              typeScalarConnection(
-                typeNode('Int', loc(43, 46)),
-                null,
-                loc(26, 47)
-              ),
-              loc(19, 47)
-            ),
-            fieldNode(
-              nameNode('edge', loc(50, 54)),
-              typeEdge(
-                typeNode('Int', loc(61, 64)),
-                null,
-                loc(56, 65)
-              ),
-              loc(50, 65)
-            ),
-          ],
-          directives: [ ],
-          loc: loc(1, 67),
-        }
-      ],
-      loc: loc(1, 68),
-    };
-    expect(printJson(doc)).to.equal(printJson(expected));
-  });
-
-  it('ScalarConnection and Edge fields with edge type', () => {
-    const body = `
-type ConnTest {
-  field: ScalarConnection(Int, EdgeType)
-  edge: Edge(Int, EdgeType)
-} `;
-
-    const doc = parse(body);
-    const loc = createLocFn(body);
-    const expected = {
-      kind: 'Document',
-      definitions: [
-        {
-          kind: 'ObjectTypeDefinition',
-          name: nameNode('ConnTest', loc(6, 14)),
-          interfaces: [],
-          fields: [
-            fieldNode(
-              nameNode('field', loc(19, 24)),
-              typeScalarConnection(
-                typeNode('Int', loc(43, 46)),
-                typeNode('EdgeType', loc(48, 56)),
-                loc(26, 57)
-              ),
-              loc(19, 57)
-            ),
-            fieldNode(
-              nameNode('edge', loc(60, 64)),
-              typeEdge(
-                typeNode('Int', loc(71, 74)),
-                typeNode('EdgeType', loc(76, 84)),
-                loc(66, 85)
-              ),
-              loc(60, 85)
-            ),
-          ],
-          directives: [ ],
-          loc: loc(1, 87),
-        }
-      ],
-      loc: loc(1, 88),
-    };
-    expect(printJson(doc)).to.equal(printJson(expected));
-  });
 });

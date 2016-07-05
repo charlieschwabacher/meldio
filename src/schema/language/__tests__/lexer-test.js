@@ -22,6 +22,25 @@ function lexErr(str) {
 
 describe('Lexer', () => {
 
+  it('disallows uncommon control characters', () => {
+
+    expect(lexErr('\u0007')
+    ).to.throw(
+      'Syntax Error GraphQL (1:1) Invalid character "\\u0007"'
+    );
+
+  });
+
+  it('accepts BOM header', () => {
+    expect(lexOne('\uFEFF foo')
+    ).to.deep.equal({
+      kind: TokenKind.NAME,
+      start: 2,
+      end: 5,
+      value: 'foo'
+    });
+  });
+
   it('skips whitespace', () => {
 
     expect(lexOne(`
@@ -48,7 +67,7 @@ describe('Lexer', () => {
       value: 'foo'
     });
 
-    expect(lexOne(`,,,foo,,,`)).to.deep.equal({
+    expect(lexOne(',,,foo,,,')).to.deep.equal({
       kind: TokenKind.NAME,
       start: 3,
       end: 6,
@@ -137,8 +156,24 @@ describe('Lexer', () => {
   it('lex reports useful string errors', () => {
 
     expect(
+      lexErr('"')
+    ).to.throw('Syntax Error GraphQL (1:2) Unterminated string');
+
+    expect(
       lexErr('"no end quote')
     ).to.throw('Syntax Error GraphQL (1:14) Unterminated string');
+
+    expect(
+      lexErr('"contains unescaped \u0007 control char"')
+    ).to.throw(
+      'Syntax Error GraphQL (1:21) Invalid character within String: "\\u0007".'
+    );
+
+    expect(
+      lexErr('"null-byte is not \u0000 end of file"')
+    ).to.throw(
+      'Syntax Error GraphQL (1:19) Invalid character within String: "\\u0000".'
+    );
 
     expect(
       lexErr('"multi\nline"')
@@ -149,40 +184,46 @@ describe('Lexer', () => {
     ).to.throw('Syntax Error GraphQL (1:7) Unterminated string');
 
     expect(
-      lexErr('"multi\u2028line"')
-    ).to.throw('Syntax Error GraphQL (1:7) Unterminated string');
-
-    expect(
-      lexErr('"multi\u2029line"')
-    ).to.throw('Syntax Error GraphQL (1:7) Unterminated string');
-
-    expect(
       lexErr('"bad \\z esc"')
-    ).to.throw('Syntax Error GraphQL (1:7) Bad character escape sequence');
+    ).to.throw(
+      'Syntax Error GraphQL (1:7) Invalid character escape sequence: \\z.'
+    );
 
     expect(
       lexErr('"bad \\x esc"')
-    ).to.throw('Syntax Error GraphQL (1:7) Bad character escape sequence');
+    ).to.throw(
+      'Syntax Error GraphQL (1:7) Invalid character escape sequence: \\x.'
+    );
 
     expect(
       lexErr('"bad \\u1 esc"')
-    ).to.throw('Syntax Error GraphQL (1:7) Bad character escape sequence');
+    ).to.throw(
+      'Syntax Error GraphQL (1:7) Invalid character escape sequence: \\u1 es.'
+    );
 
     expect(
       lexErr('"bad \\u0XX1 esc"')
-    ).to.throw('Syntax Error GraphQL (1:7) Bad character escape sequence');
+    ).to.throw(
+      'Syntax Error GraphQL (1:7) Invalid character escape sequence: \\u0XX1.'
+    );
 
     expect(
       lexErr('"bad \\uXXXX esc"')
-    ).to.throw('Syntax Error GraphQL (1:7) Bad character escape sequence');
+    ).to.throw(
+      'Syntax Error GraphQL (1:7) Invalid character escape sequence: \\uXXXX.'
+    );
 
     expect(
       lexErr('"bad \\uFXXX esc"')
-    ).to.throw('Syntax Error GraphQL (1:7) Bad character escape sequence');
+    ).to.throw(
+      'Syntax Error GraphQL (1:7) Invalid character escape sequence: \\uFXXX.'
+    );
 
     expect(
       lexErr('"bad \\uXXXF esc"')
-    ).to.throw('Syntax Error GraphQL (1:7) Bad character escape sequence');
+    ).to.throw(
+      'Syntax Error GraphQL (1:7) Invalid character escape sequence: \\uXXXF.'
+    );
   });
 
   it('lexes numbers', () => {
@@ -350,7 +391,7 @@ describe('Lexer', () => {
       lexErr('1.')
     ).to.throw(
       'Syntax Error GraphQL (1:3) Invalid number, ' +
-      'expected digit but got: EOF.'
+      'expected digit but got: <EOF>.'
     );
 
     expect(
@@ -364,18 +405,19 @@ describe('Lexer', () => {
       'expected digit but got: "A".'
     );
 
-    expect(
-      lexErr('-A')
-    ).to.throw(
-      'Syntax Error GraphQL (1:2) Invalid number, ' +
-      'expected digit but got: "A".'
-    );
+    // Meldio Extensions will return DASH NAME
+    // expect(
+    //   lexErr('-A')
+    // ).to.throw(
+    //   'Syntax Error GraphQL (1:2) Invalid number, ' +
+    //   'expected digit but got: "A".'
+    // );
 
     expect(
       lexErr('1.0e')
     ).to.throw(
       'Syntax Error GraphQL (1:5) Invalid number, ' +
-      'expected digit but got: EOF.');
+      'expected digit but got: <EOF>.');
 
     expect(
       lexErr('1.0eA')
@@ -518,23 +560,28 @@ describe('Lexer', () => {
 
     expect(
       lexErr('\u203B')
-    ).to.throw('Syntax Error GraphQL (1:1) Unexpected character "\u203B"');
+    ).to.throw('Syntax Error GraphQL (1:1) Unexpected character "\\u203B"');
+
+    expect(
+      lexErr('\u200b')
+    ).to.throw('Syntax Error GraphQL (1:1) Unexpected character "\\u200B"');
   });
 
-  it('lex reports useful information for dashes in names', () => {
-    const q = 'a-b';
-    const lexer = lex(new Source(q));
-    const firstToken = lexer();
-    expect(firstToken).to.deep.equal({
-      kind: TokenKind.NAME,
-      start: 0,
-      end: 1,
-      value: 'a'
-    });
-    expect(
-      () => lexer()
-    ).to.throw(
-      'Syntax Error GraphQL (1:3) Invalid number, expected digit but got: "b".'
-    );
-  });
+  // Meldio Extension will return NAME DASH NAME
+  // it('lex reports useful information for dashes in names', () => {
+  //   const q = 'a-b';
+  //   const lexer = lex(new Source(q));
+  //   const firstToken = lexer();
+  //   expect(firstToken).to.deep.equal({
+  //     kind: TokenKind.NAME,
+  //     start: 0,
+  //     end: 1,
+  //     value: 'a'
+  //   });
+  //   expect(
+  //     () => lexer()
+  //   ).to.throw(
+  //   'Syntax Error GraphQL (1:3) Invalid number, expected digit but got: "b".'
+  //   );
+  // });
 });
