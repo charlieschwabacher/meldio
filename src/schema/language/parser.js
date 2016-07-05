@@ -1108,12 +1108,19 @@ function parseOrderExpression(parser: Parser): OrderExpression {
 
   const key = parseEnumValueDefinition(parser);
   expect(parser, TokenKind.COLON);
-  const expression = many(
-    parser,
-    TokenKind.BRACKET_L,
-    parseOrderObject,
-    TokenKind.BRACKET_R
-  );
+
+  let expression;
+  if (peek(parser, TokenKind.BRACKET_L)) {
+    expression = many(
+      parser,
+      TokenKind.BRACKET_L,
+      parseOrderObject,
+      TokenKind.BRACKET_R
+    );
+  } else {
+    expression = [ parseOrderObject(parser) ];
+  }
+
   return {
     kind: ORDER_EXPRESSION,
     key,

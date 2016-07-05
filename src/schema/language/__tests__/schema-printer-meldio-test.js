@@ -69,6 +69,7 @@ filter on =Label=> Foo {
 order on =Label=> Foo {
   ONE: [{node: {one: ASCENDING}}, {node: {two: ASCENDING}}]
   TWO: [{node: {two: ASCENDING}}, {node: {one: ASCENDING}}]
+  SINGLETON: {node: {two: ASCENDING}}
 }
 
 filter on [Feed] {}

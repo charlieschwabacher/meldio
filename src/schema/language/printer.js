@@ -219,7 +219,10 @@ const printDocASTReducer = {
     ], ' '),
 
   OrderExpression: ({ key, expression }) =>
-    `${key}: ${wrap('[', join(expression, ', '), ']')}`,
+    `${key}: ` + (
+      expression.length > 1 ?
+        wrap('[', join(expression, ', '), ']') :
+        expression),
 
   ConnectionType: ({ type, edgeLabel, direction, cardinality }) => {
     const leftArrowEnd =
