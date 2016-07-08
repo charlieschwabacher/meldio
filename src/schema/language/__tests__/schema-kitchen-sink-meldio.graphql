@@ -1,8 +1,5 @@
 mutation addFoo(id: ID!, name: String!) {
-  edgeInWithoutLabel: <== Foo
-  edgeInWithLabel: <=Label= Foo
-  edgeOutWithoutLabel: ==> Foo
-  edgeOutWithLabel: =Label=> Foo
+  edge: FooEdge
   statusMessage: String
 }
 
@@ -20,27 +17,11 @@ mutation argsMutation(arg1: String, arg2: Int!): String
 mutation argsMutation(arg1: String, arg2: Int!): String @withDirective
 
 type ConnectionsTest {
-  connInSingularNoLabel: <-- Foo
-  connInPluralNoLabel: <== Foo
-  connInSingularLabel: <-Label- Foo
-  connInPluralLabel: <=Label= Foo
-  connOutSingularNoLabel: --> Foo
-  connOutPluralNoLabel: ==> Foo
-  connOutSingularLabel: -Label-> Foo
-  connOutPluralLabel: =Label=> Foo
-  scalarConnection: ==> Int
-  scalarConnectionWithEdge: =Edge=> Int
+  connInSingular: <-Label- Foo
+  connInPlural: <=Label= Foo
+  connOutSingular: -Label-> Foo
+  connOutPlural: =Label=> Foo
 }
-
-filter on ==> Foo {
-  ONE: {node: {three: {eq: 1}}}
-  TWO: {node: {three: {eq: 2}}}
-  THREE: {node: {three: {eq: 3}}}
-  SOME: (number: Int) {node: {three: {eq: $number}}}
-  ANY: {}
-}
-
-order on ==> Foo {}
 
 filter on =Label=> Foo {
   ONE: {node: {three: {eq: 1}}}
@@ -58,23 +39,11 @@ order on =Label=> Foo {
 
 filter on [Feed] {}
 
-filter on ==> Bar {}
-
 filter on =Label=> Bar {}
-
-filter on ==> String {}
-
-filter on =Label=> String {}
 
 order on [Feed] {}
 
-order on ==> Bar {}
-
 order on =Label=> Bar {}
-
-order on ==> String {}
-
-order on =Label=> String {}
 
 query noArgsRootQuery: String
 
@@ -101,5 +70,5 @@ query argsRootQueryWithFields(arg1: String, arg2: Int!) {
 
 query argsRootQueryWithFields(arg1: String, arg2: Int!) @withDirective(foo: "BAR") {
   foo: String!
-  bar: [Bar!]!  @withFieldDirective
+  bar: [Bar!]! @withFieldDirective
 }

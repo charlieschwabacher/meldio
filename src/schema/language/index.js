@@ -14,4 +14,6 @@ export { lex } from './lexer';
 export { parse, parseValue } from './parser';
 export { print } from './printer';
 export { Source } from './source';
+export { syntaxError } from './syntaxError';
 export { visit, visitInParallel, visitWithTypeInfo, BREAK } from './visitor';
+export { extractVariablesFromObjectValues } from './utils';

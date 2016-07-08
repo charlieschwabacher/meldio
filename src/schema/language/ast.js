@@ -62,11 +62,8 @@ export type Node = Name
                  | DirectiveDefinition
                  | ConnectionType
                  | ConnectionJoinType
-                 | EdgeType
                  | MutationDefinition
-                 | MutationFieldDefinition
                  | QueryDefinition
-                 | QueryFieldDefinition
                  | FilterDefinition
                  | FilterCondition
                  | OrderDefinition
@@ -394,7 +391,7 @@ export type DirectiveDefinition = {
   locations: Array<Name>;
 }
 
-export type ResultEnum = 'TYPE' | 'FIELDS';
+export type ResultEnum = 'type' | 'fields';
 
 export type MutationDefinition = {
   kind: 'MutationDefinition';
@@ -404,22 +401,8 @@ export type MutationDefinition = {
   directives?: ?Array<Directive>;
   result: ResultEnum;
   type?: ?Type;
-  fields?: ?Array<MutationFieldDefinition>;
+  fields?: ?Array<FieldDefinition>;
 }
-
-export type MutationFieldDefinition = {
-  kind: 'MutationFieldDefinition';
-  loc?: ?Location;
-  name: Name;
-  arguments: Array<InputValueDefinition>;
-  type: MutationFieldType;
-  directives?: ?Array<Directive>;
-}
-
-export type MutationFieldType = NamedType
-                              | ListType
-                              | NonNullType
-                              | EdgeType
 
 export type QueryDefinition = {
   kind: 'QueryDefinition';
@@ -429,16 +412,7 @@ export type QueryDefinition = {
   directives?: ?Array<Directive>;
   result: ResultEnum;
   type?: ?Type;
-  fields?: ?Array<QueryFieldDefinition>;
-}
-
-export type QueryFieldDefinition = {
-  kind: 'QueryFieldDefinition';
-  loc?: ?Location;
-  name: Name;
-  arguments: Array<InputValueDefinition>;
-  type: Type;
-  directives?: ?Array<Directive>;
+  fields?: ?Array<FieldDefinition>;
 }
 
 export type FilterDefinition = {
@@ -470,14 +444,14 @@ export type OrderExpression = {
   expression: Array<ObjectValue>;
 }
 
-export type ConnectionDirectionEnum = 'IN' | 'OUT';
-export type ConnectionCardinalityEnum = 'SINGULAR' | 'PLURAL';
+export type ConnectionDirectionEnum = 'in' | 'out';
+export type ConnectionCardinalityEnum = 'singular' | 'plural';
 
 export type ConnectionType = {
   kind: 'ConnectionType';
   loc?: ?Location;
   type: NamedType;
-  edgeLabel?: ?NamedType;
+  edgeLabel: Name;
   direction: ConnectionDirectionEnum;
   cardinality: ConnectionCardinalityEnum;
 }
@@ -486,12 +460,4 @@ export type ConnectionJoinType = {
   kind: 'ConnectionJoinType';
   loc?: ?Location;
   connections: Array<ConnectionType>
-}
-
-export type EdgeType = {
-  kind: 'EdgeType';
-  loc?: ?Location;
-  type: NamedType;
-  edgeLabel?: ?NamedType;
-  direction: ConnectionDirectionEnum;
 }

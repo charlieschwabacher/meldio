@@ -76,13 +76,9 @@ export const DIRECTIVE_DEFINITION = 'DirectiveDefinition';
 // Meldio Custom Definitions
 export const CONNECTION_TYPE = 'ConnectionType';
 export const CONNECTION_JOIN_TYPE = 'ConnectionJoinType';
-export const EDGE_TYPE = 'EdgeType';
 
 export const MUTATION_DEFINITION = 'MutationDefinition';
-export const MUTATION_FIELD_DEFINITION = 'MutationFieldDefinition';
-
 export const QUERY_DEFINITION = 'QueryDefinition';
-export const QUERY_FIELD_DEFINITION = 'QueryFieldDefinition';
 
 export const FILTER_DEFINITION = 'FilterDefinition';
 export const FILTER_CONDITION = 'FilterCondition';

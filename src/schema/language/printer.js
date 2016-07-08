@@ -173,29 +173,18 @@ const printDocASTReducer = {
   MutationDefinition:
     ({ name, arguments: args, directives, result, type, fields }) =>
       'mutation ' + name + wrap('(', join(args, ', '), ')') + (
-        result === 'TYPE' ?
+        result === 'type' ?
         ': ' + type + wrap(' ', join(directives, ' ')) :
         wrap(' ', join(directives, ' ')) + ' ' + block(fields)
       ),
 
-  MutationFieldDefinition: ({ name, arguments: args, type, directives }) =>
-    name +
-    wrap('(', join(args, ', '), ')') +
-    ': ' + type +
-    wrap(' ', join(directives, ' ')),
-
   QueryDefinition:
     ({ name, arguments: args, directives, result, type, fields }) =>
       'query ' + name + wrap('(', join(args, ', '), ')') + (
-        result === 'TYPE' ?
+        result === 'type' ?
           ': ' + type + wrap(' ', join(directives, ' ')) :
           wrap(' ', join(directives, ' ')) + ' ' + block(fields)
       ),
-
-  QueryFieldDefinition: ({ name, arguments: args, type, directives }) =>
-    name + wrap('(', join(args, ', '), ')') +
-    ': ' + type +
-    wrap(' ', join(directives, ' ')),
 
   FilterDefinition: ({ type, conditions }) =>
     join([
@@ -224,30 +213,20 @@ const printDocASTReducer = {
 
   ConnectionType: ({ type, edgeLabel, direction, cardinality }) => {
     const leftArrowEnd =
-      direction === 'IN' ?
-        (cardinality === 'SINGULAR' ? '<-' : '<=') :
-        (cardinality === 'SINGULAR' ? '-' : '=');
+      direction === 'in' ?
+        (cardinality === 'singular' ? '<-' : '<=') :
+        (cardinality === 'singular' ? '-' : '=');
     const rightArrowEnd =
-      direction === 'IN' ?
-        (cardinality === 'SINGULAR' ? '-' : '=') :
-        (cardinality === 'SINGULAR' ? '->' : '=>');
+      direction === 'in' ?
+        (cardinality === 'singular' ? '-' : '=') :
+        (cardinality === 'singular' ? '->' : '=>');
     return join([
-      wrap(leftArrowEnd, edgeLabel, rightArrowEnd) ||
-        `${leftArrowEnd}${rightArrowEnd}`,
+      wrap(leftArrowEnd, edgeLabel, rightArrowEnd),
       type
     ], ' ');
   },
 
-  ConnectionJoinType: ({ connections }) =>
-    join(connections, ' '),
-
-  EdgeType: ({ type, edgeLabel, direction }) =>
-    join([
-      direction === 'OUT' ?
-        wrap('=', edgeLabel, '=>') || '==>' :
-        wrap('<=', edgeLabel, '=') || '<==',
-      type
-    ], ' '),
+  ConnectionJoinType: ({ connections }) => join(connections, ' '),
 };
 
 /**

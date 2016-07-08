@@ -67,154 +67,9 @@ function typeConnectionJoin(connections, loc) {
   };
 }
 
-// function typeEdge(type, edgeLabel, direction, loc) {
-//   return {
-//     kind: 'EdgeType',
-//     type,
-//     edgeLabel,
-//     direction,
-//     loc,
-//   };
-// }
-
 describe('Schema Parser - Meldio Extensions', () => {
-  it('Connection fields: singular out without edge labels', () => {
-    const body = `type Hello { conn: --> World }`;
 
-    const doc = parse(body);
-    const loc = createLocFn(body);
-    const expected = {
-      kind: 'Document',
-      definitions: [
-        {
-          kind: 'ObjectTypeDefinition',
-          name: nameNode('Hello', loc(5, 10)),
-          interfaces: [],
-          directives: [],
-          fields: [
-            fieldNode(
-              nameNode('conn', loc(13, 17)),
-              typeConnection(
-                typeNode('World', loc(23, 28)),
-                null,
-                'OUT',
-                'SINGULAR',
-                loc(19, 28)
-              ),
-              loc(13, 28)
-            )
-          ],
-          loc: loc(0, 30),
-        }
-      ],
-      loc: loc(0, 30),
-    };
-    expect(printJson(doc)).to.equal(printJson(expected));
-  });
-
-  it('Connection fields: plural out without edge labels', () => {
-    const body = `type Hello { conn: ==> World }`;
-
-    const doc = parse(body);
-    const loc = createLocFn(body);
-    const expected = {
-      kind: 'Document',
-      definitions: [
-        {
-          kind: 'ObjectTypeDefinition',
-          name: nameNode('Hello', loc(5, 10)),
-          interfaces: [],
-          directives: [],
-          fields: [
-            fieldNode(
-              nameNode('conn', loc(13, 17)),
-              typeConnection(
-                typeNode('World', loc(23, 28)),
-                null,
-                'OUT',
-                'PLURAL',
-                loc(19, 28)
-              ),
-              loc(13, 28)
-            )
-          ],
-          loc: loc(0, 30),
-        }
-      ],
-      loc: loc(0, 30),
-    };
-    expect(printJson(doc)).to.equal(printJson(expected));
-  });
-
-  it('Connection fields: singular in without edge labels', () => {
-    const body = `type Hello { conn: <-- World }`;
-
-    const doc = parse(body);
-    const loc = createLocFn(body);
-    const expected = {
-      kind: 'Document',
-      definitions: [
-        {
-          kind: 'ObjectTypeDefinition',
-          name: nameNode('Hello', loc(5, 10)),
-          interfaces: [],
-          directives: [],
-          fields: [
-            fieldNode(
-              nameNode('conn', loc(13, 17)),
-              typeConnection(
-                typeNode('World', loc(23, 28)),
-                null,
-                'IN',
-                'SINGULAR',
-                loc(19, 28)
-              ),
-              loc(13, 28)
-            )
-          ],
-          loc: loc(0, 30),
-        }
-      ],
-      loc: loc(0, 30),
-    };
-    expect(printJson(doc)).to.equal(printJson(expected));
-  });
-
-  it('Connection fields: plural in without edge labels', () => {
-    const body = `type Hello { conn: <== World }`;
-
-    const doc = parse(body);
-    const loc = createLocFn(body);
-    const expected = {
-      kind: 'Document',
-      definitions: [
-        {
-          kind: 'ObjectTypeDefinition',
-          name: nameNode('Hello', loc(5, 10)),
-          interfaces: [],
-          directives: [],
-          fields: [
-            fieldNode(
-              nameNode('conn', loc(13, 17)),
-              typeConnection(
-                typeNode('World', loc(23, 28)),
-                null,
-                'IN',
-                'PLURAL',
-                loc(19, 28)
-              ),
-              loc(13, 28)
-            )
-          ],
-          loc: loc(0, 30),
-        }
-      ],
-      loc: loc(0, 30),
-    };
-    expect(printJson(doc)).to.equal(printJson(expected));
-  });
-
-  it('Connection fields: singular out with edge label', () => {
+  it('Connection fields: singular out', () => {
     const body = `type Hello { conn: -Label-> World }`;
 
     const doc = parse(body);
@@ -232,9 +87,9 @@ describe('Schema Parser - Meldio Extensions', () => {
               nameNode('conn', loc(13, 17)),
               typeConnection(
                 typeNode('World', loc(28, 33)),
-                typeNode('Label', loc(20, 25)),
-                'OUT',
-                'SINGULAR',
+                nameNode('Label', loc(20, 25)),
+                'out',
+                'singular',
                 loc(19, 33)
               ),
               loc(13, 33)
@@ -248,7 +103,7 @@ describe('Schema Parser - Meldio Extensions', () => {
     expect(printJson(doc)).to.equal(printJson(expected));
   });
 
-  it('Connection fields: plural out with edge label', () => {
+  it('Connection fields: plural out', () => {
     const body = `type Hello { conn: = Label => World }`;
 
     const doc = parse(body);
@@ -266,9 +121,9 @@ describe('Schema Parser - Meldio Extensions', () => {
               nameNode('conn', loc(13, 17)),
               typeConnection(
                 typeNode('World', loc(30, 35)),
-                typeNode('Label', loc(21, 26)),
-                'OUT',
-                'PLURAL',
+                nameNode('Label', loc(21, 26)),
+                'out',
+                'plural',
                 loc(19, 35)
               ),
               loc(13, 35)
@@ -282,7 +137,7 @@ describe('Schema Parser - Meldio Extensions', () => {
     expect(printJson(doc)).to.equal(printJson(expected));
   });
 
-  it('Connection fields: singular in with edge label', () => {
+  it('Connection fields: singular in', () => {
     const body = `type Hello { conn: <- Label - World }`;
 
     const doc = parse(body);
@@ -300,9 +155,9 @@ describe('Schema Parser - Meldio Extensions', () => {
               nameNode('conn', loc(13, 17)),
               typeConnection(
                 typeNode('World', loc(30, 35)),
-                typeNode('Label', loc(22, 27)),
-                'IN',
-                'SINGULAR',
+                nameNode('Label', loc(22, 27)),
+                'in',
+                'singular',
                 loc(19, 35)
               ),
               loc(13, 35)
@@ -316,7 +171,7 @@ describe('Schema Parser - Meldio Extensions', () => {
     expect(printJson(doc)).to.equal(printJson(expected));
   });
 
-  it('Connection fields: plural in with edge label', () => {
+  it('Connection fields: plural in', () => {
     const body = `type Hello { conn: <=Label= World }`;
 
     const doc = parse(body);
@@ -334,9 +189,9 @@ describe('Schema Parser - Meldio Extensions', () => {
               nameNode('conn', loc(13, 17)),
               typeConnection(
                 typeNode('World', loc(28, 33)),
-                typeNode('Label', loc(21, 26)),
-                'IN',
-                'PLURAL',
+                nameNode('Label', loc(21, 26)),
+                'in',
+                'plural',
                 loc(19, 33)
               ),
               loc(13, 33)
@@ -370,16 +225,16 @@ describe('Schema Parser - Meldio Extensions', () => {
               typeConnectionJoin([
                 typeConnection(
                   typeNode('Human', loc(35, 40)),
-                  typeNode('Fathered', loc(25, 33)),
-                  'IN',
-                  'SINGULAR',
+                  nameNode('Fathered', loc(25, 33)),
+                  'in',
+                  'singular',
                   loc(23, 40)
                 ),
                 typeConnection(
                   typeNode('Human', loc(53, 58)),
-                  typeNode('Fathered', loc(43, 51)),
-                  'IN',
-                  'SINGULAR',
+                  nameNode('Fathered', loc(43, 51)),
+                  'in',
+                  'singular',
                   loc(41, 58)
                 ),
               ], loc(23, 58)),
@@ -414,16 +269,16 @@ describe('Schema Parser - Meldio Extensions', () => {
               typeConnectionJoin([
                 typeConnection(
                   typeNode('Human', loc(38, 43)),
-                  typeNode('Fathered', loc(27, 35)),
-                  'OUT',
-                  'PLURAL',
+                  nameNode('Fathered', loc(27, 35)),
+                  'out',
+                  'plural',
                   loc(26, 43)
                 ),
                 typeConnection(
                   typeNode('Human', loc(56, 61)),
-                  typeNode('Fathered', loc(45, 53)),
-                  'OUT',
-                  'PLURAL',
+                  nameNode('Fathered', loc(45, 53)),
+                  'out',
+                  'plural',
                   loc(44, 61)
                 ),
               ], loc(26, 61)),

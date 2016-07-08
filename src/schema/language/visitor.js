@@ -56,10 +56,7 @@ export const QueryDocumentKeys = {
   DirectiveDefinition: [ 'name', 'arguments', 'locations' ],
 
   MutationDefinition: [ 'name', 'arguments', 'directives', 'type', 'fields' ],
-  MutationFieldDefinition: [ 'name', 'arguments', 'type', 'directives' ],
-
   QueryDefinition: [ 'name', 'arguments', 'directives', 'type', 'fields' ],
-  QueryFieldDefinition: [ 'name', 'arguments', 'type', 'directives' ],
 
   FilterDefinition: [ 'type', 'conditions' ],
   FilterCondition: [ 'key', 'arguments', 'condition' ],
@@ -69,7 +66,6 @@ export const QueryDocumentKeys = {
 
   ConnectionType: [ 'type', 'edgeLabel' ],
   ConnectionJoinType: [ 'connections' ],
-  EdgeType: [ 'type', 'edgeLabel' ],
 };
 
 export const BREAK = {};

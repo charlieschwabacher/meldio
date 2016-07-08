@@ -1,3 +1,4 @@
+/* @flow */
 /**
  *  Copyright (c) 2015, Facebook, Inc.
  *  All rights reserved.
@@ -49,16 +50,13 @@ import type {
 
   FieldType,
   MutationDefinition,
-  MutationFieldDefinition,
-  MutationFieldType,
   QueryDefinition,
-  QueryFieldDefinition,
   FilterDefinition,
   FilterCondition,
   OrderDefinition,
   OrderExpression,
   ConnectionType,
-  EdgeType,
+  ConnectionJoinType,
 } from './ast';
 
 import {
@@ -99,16 +97,13 @@ import {
   DIRECTIVE_DEFINITION,
 
   MUTATION_DEFINITION,
-  MUTATION_FIELD_DEFINITION,
   QUERY_DEFINITION,
-  QUERY_FIELD_DEFINITION,
   FILTER_DEFINITION,
   FILTER_CONDITION,
   ORDER_DEFINITION,
   ORDER_EXPRESSION,
   CONNECTION_TYPE,
   CONNECTION_JOIN_TYPE,
-  EDGE_TYPE,
 } from './kinds';
 
 
@@ -536,7 +531,7 @@ function parseFieldDefinition(parser: Parser): FieldDefinition {
   const name = parseName(parser);
   const args = parseArgumentDefs(parser);
   expect(parser, TokenKind.COLON);
-  const type = parseFieldDefinitionType(parser);
+  const type = parseFieldType(parser);
   const directives = parseDirectives(parser);
   return {
     kind: FIELD_DEFINITION,
@@ -913,11 +908,6 @@ const CONNECTION_PREFIXES = [
   TokenKind.LESS,
 ];
 
-const EDGE_PREFIXES = [
-  TokenKind.EQUALS,
-  TokenKind.LESS,
-];
-
 function atLeastOne<T>(
   parser: Parser,
   openKinds: Array<number>,
@@ -955,16 +945,16 @@ function parseMutationDefinition(parser: Parser): MutationDefinition {
   let directives;
 
   if (skip(parser, TokenKind.COLON)) {
-    result = 'TYPE';
+    result = 'type';
     type = parseType(parser);
     directives = parseDirectives(parser);
   } else {
-    result = 'FIELDS';
+    result = 'fields';
     directives = parseDirectives(parser);
     fields = any(
       parser,
       TokenKind.BRACE_L,
-      parseMutationFieldDefinition,
+      parseFieldDefinition,
       TokenKind.BRACE_R
     );
   }
@@ -980,57 +970,6 @@ function parseMutationDefinition(parser: Parser): MutationDefinition {
     loc: loc(parser, start),
   };
 }
-
-function parseMutationFieldDefinition(parser: Parser): MutationFieldDefinition {
-  const start = parser.token.start;
-  const name = parseName(parser);
-  const args = parseArgumentDefs(parser);
-  expect(parser, TokenKind.COLON);
-  const type = parseMutationFieldDefinitionType(parser);
-  const directives = parseDirectives(parser);
-  return {
-    kind: MUTATION_FIELD_DEFINITION,
-    name,
-    arguments: args,
-    type,
-    directives,
-    loc: loc(parser, start),
-  };
-}
-
-/**
- * MutationFieldType :
- *   - NamedType
- *   - ListType
- *   - NonNullType
- *   - EdgeType
- */
-function parseMutationFieldDefinitionType(parser: Parser): MutationFieldType {
-  const start = parser.token.start;
-  let type;
-  if (skip(parser, TokenKind.BRACKET_L)) {
-    type = parseType(parser);
-    expect(parser, TokenKind.BRACKET_R);
-    type = {
-      kind: LIST_TYPE,
-      type,
-      loc: loc(parser, start)
-    };
-  } else if (EDGE_PREFIXES.includes(parser.token.kind)) {
-    type = parseEdgeType(parser);
-  } else {
-    type = parseNamedType(parser);
-  }
-  if (skip(parser, TokenKind.BANG)) {
-    return {
-      kind: NON_NULL_TYPE,
-      type,
-      loc: loc(parser, start)
-    };
-  }
-  return type;
-}
-
 
 function parseFilterDefinition(parser: Parser): FilterDefinition {
   const start = parser.token.start;
@@ -1153,7 +1092,7 @@ function parseOrderExpression(parser: Parser): OrderExpression {
  *   - ConnectionType
  *   - ConnectionJoinType
  */
-export function parseFieldDefinitionType(parser: Parser): FieldType {
+export function parseFieldType(parser: Parser): FieldType {
   const start = parser.token.start;
   let type;
   if (skip(parser, TokenKind.BRACKET_L)) {
@@ -1167,14 +1106,14 @@ export function parseFieldDefinitionType(parser: Parser): FieldType {
   } else if (CONNECTION_PREFIXES.includes(parser.token.kind)) {
     const conns = atLeastOne(parser, CONNECTION_PREFIXES, parseConnectionType);
     if (conns.length === 1) {
-      type = conns[0];
-    } else {
-      type = {
-        kind: CONNECTION_JOIN_TYPE,
-        connections: conns,
-        loc: loc(parser, start),
-      };
+      return conns[0];
     }
+    const join: ConnectionJoinType = {
+      kind: CONNECTION_JOIN_TYPE,
+      connections: conns,
+      loc: loc(parser, start),
+    };
+    return join;
   } else {
     type = parseNamedType(parser);
   }
@@ -1189,34 +1128,28 @@ export function parseFieldDefinitionType(parser: Parser): FieldType {
 }
 
 // Possible Connection Token Combinations:
-// ==> NamedType
-// --> NamedType
-// <== NamedType
-// <-- NamedType
-// = NamedType => NamedType
-// - NamedType -> NamedType
-// <= NamedType = NamedType
-// <- NamedType - NamedType
+// = Name => NamedType
+// - Name -> NamedType
+// <= Name = NamedType
+// <- Name - NamedType
 
 function parseConnectionType(parser: Parser): ConnectionType {
   const start = parser.token.start;
-  let type;
-  let edgeLabel = null;
   let cardinality;
   let direction;
 
   if (skip(parser, TokenKind.DASH)) {
-    cardinality = 'SINGULAR';
-    direction = 'OUT';
+    cardinality = 'singular';
+    direction = 'out';
   } else if (skip(parser, TokenKind.EQUALS)) {
-    cardinality = 'PLURAL';
-    direction = 'OUT';
+    cardinality = 'plural';
+    direction = 'out';
   } else if (skip(parser, TokenKind.LESS)) {
-    direction = 'IN';
+    direction = 'in';
     if (skip(parser, TokenKind.DASH)) {
-      cardinality = 'SINGULAR';
+      cardinality = 'singular';
     } else if (skip(parser, TokenKind.EQUALS)) {
-      cardinality = 'PLURAL';
+      cardinality = 'plural';
     } else {
       throw unexpected(parser);
     }
@@ -1224,16 +1157,14 @@ function parseConnectionType(parser: Parser): ConnectionType {
     throw unexpected(parser);
   }
 
-  if (peek(parser, TokenKind.NAME)) {
-    edgeLabel = parseNamedType(parser);
-  }
+  const edgeLabel = parseName(parser);
 
-  expect(parser, cardinality === 'PLURAL' ? TokenKind.EQUALS : TokenKind.DASH);
+  expect(parser, cardinality === 'plural' ? TokenKind.EQUALS : TokenKind.DASH);
 
-  if (direction === 'OUT') {
+  if (direction === 'out') {
     expect(parser, TokenKind.GREATER);
   }
-  type = parseNamedType(parser);
+  const type = parseNamedType(parser);
 
 
   return {
@@ -1242,47 +1173,6 @@ function parseConnectionType(parser: Parser): ConnectionType {
     edgeLabel,
     direction,
     cardinality,
-    loc: loc(parser, start),
-  };
-}
-
-// Possible Edge Token Combinations:
-// ==> NamedType
-// = NamedType => NamedType
-// <== NamedType
-// <= NamedType = NamedType
-
-function parseEdgeType(parser: Parser): EdgeType {
-  const start = parser.token.start;
-  let type;
-  let edgeLabel = null;
-  let direction;
-
-  if (skip(parser, TokenKind.EQUALS)) {
-    direction = 'OUT';
-  } else if (skip(parser, TokenKind.LESS)) {
-    direction = 'IN';
-    expect(parser, TokenKind.EQUALS);
-  } else {
-    throw unexpected(parser);
-  }
-
-  if (peek(parser, TokenKind.NAME)) {
-    edgeLabel = parseNamedType(parser);
-  }
-
-  expect(parser, TokenKind.EQUALS);
-
-  if (direction === 'OUT') {
-    expect(parser, TokenKind.GREATER);
-  }
-  type = parseNamedType(parser);
-
-  return {
-    kind: EDGE_TYPE,
-    type,
-    edgeLabel,
-    direction,
     loc: loc(parser, start),
   };
 }
@@ -1299,16 +1189,16 @@ function parseQueryDefinition(parser: Parser): QueryDefinition {
   let directives;
 
   if (skip(parser, TokenKind.COLON)) {
-    result = 'TYPE';
+    result = 'type';
     type = parseType(parser);
     directives = parseDirectives(parser);
   } else {
-    result = 'FIELDS';
+    result = 'fields';
     directives = parseDirectives(parser);
     fields = many(
       parser,
       TokenKind.BRACE_L,
-      parseQueryFieldDefinition,
+      parseFieldDefinition,
       TokenKind.BRACE_R
     );
   }
@@ -1321,23 +1211,6 @@ function parseQueryDefinition(parser: Parser): QueryDefinition {
     result,
     type,
     fields,
-    loc: loc(parser, start),
-  };
-}
-
-function parseQueryFieldDefinition(parser: Parser): QueryFieldDefinition {
-  const start = parser.token.start;
-  const name = parseName(parser);
-  const args = parseArgumentDefs(parser);
-  expect(parser, TokenKind.COLON);
-  const type = parseType(parser);
-  const directives = parseDirectives(parser);
-  return {
-    kind: QUERY_FIELD_DEFINITION,
-    name,
-    arguments: args,
-    type,
-    directives,
     loc: loc(parser, start),
   };
 }
