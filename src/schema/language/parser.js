@@ -1164,8 +1164,16 @@ function parseConnectionType(parser: Parser): ConnectionType {
   if (direction === 'out') {
     expect(parser, TokenKind.GREATER);
   }
-  const type = parseNamedType(parser);
 
+  const typeStart = parser.token.start;
+  let type = parseNamedType(parser);
+  if (skip(parser, TokenKind.BANG)) {
+    type = ({
+      kind: NON_NULL_TYPE,
+      type,
+      loc: loc(parser, typeStart)
+    }: NonNullType);
+  }
 
   return {
     kind: CONNECTION_TYPE,

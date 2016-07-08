@@ -25,6 +25,14 @@ function typeNode(name, loc) {
   };
 }
 
+function required(type, loc) {
+  return {
+    kind: 'NonNullType',
+    type,
+    loc,
+  };
+}
+
 function nameNode(name, loc) {
   return {
     kind: 'Name',
@@ -103,6 +111,40 @@ describe('Schema Parser - Meldio Extensions', () => {
     expect(printJson(doc)).to.equal(printJson(expected));
   });
 
+  it('Connection fields: singular out with required', () => {
+    const body = `type Hello { conn: -Label-> World! }`;
+
+    const doc = parse(body);
+    const loc = createLocFn(body);
+    const expected = {
+      kind: 'Document',
+      definitions: [
+        {
+          kind: 'ObjectTypeDefinition',
+          name: nameNode('Hello', loc(5, 10)),
+          interfaces: [],
+          directives: [],
+          fields: [
+            fieldNode(
+              nameNode('conn', loc(13, 17)),
+              typeConnection(
+                required(typeNode('World', loc(28, 33)), loc(28, 34)),
+                nameNode('Label', loc(20, 25)),
+                'out',
+                'singular',
+                loc(19, 34)
+              ),
+              loc(13, 34)
+            )
+          ],
+          loc: loc(0, 36),
+        }
+      ],
+      loc: loc(0, 36),
+    };
+    expect(printJson(doc)).to.equal(printJson(expected));
+  });
+
   it('Connection fields: plural out', () => {
     const body = `type Hello { conn: = Label => World }`;
 
@@ -167,6 +209,40 @@ describe('Schema Parser - Meldio Extensions', () => {
         }
       ],
       loc: loc(0, 37),
+    };
+    expect(printJson(doc)).to.equal(printJson(expected));
+  });
+
+  it('Connection fields: singular in with required', () => {
+    const body = `type Hello { conn: <- Label - World! }`;
+
+    const doc = parse(body);
+    const loc = createLocFn(body);
+    const expected = {
+      kind: 'Document',
+      definitions: [
+        {
+          kind: 'ObjectTypeDefinition',
+          name: nameNode('Hello', loc(5, 10)),
+          interfaces: [],
+          directives: [],
+          fields: [
+            fieldNode(
+              nameNode('conn', loc(13, 17)),
+              typeConnection(
+                required(typeNode('World', loc(30, 35)), loc(30, 36)),
+                nameNode('Label', loc(22, 27)),
+                'in',
+                'singular',
+                loc(19, 36)
+              ),
+              loc(13, 36)
+            )
+          ],
+          loc: loc(0, 38),
+        }
+      ],
+      loc: loc(0, 38),
     };
     expect(printJson(doc)).to.equal(printJson(expected));
   });

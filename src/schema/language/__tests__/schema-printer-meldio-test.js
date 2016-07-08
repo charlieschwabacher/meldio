@@ -47,8 +47,10 @@ mutation argsMutation(arg1: String, arg2: Int!): String @withDirective
 
 type ConnectionsTest {
   connInSingular: <-Label- Foo
+  connInSingularReq: <-Label- Foo!
   connInPlural: <=Label= Foo
   connOutSingular: -Label-> Foo
+  connOutSingularReq: -Label-> Foo!
   connOutPlural: =Label=> Foo
 }
 

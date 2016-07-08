@@ -450,7 +450,7 @@ export type ConnectionCardinalityEnum = 'singular' | 'plural';
 export type ConnectionType = {
   kind: 'ConnectionType';
   loc?: ?Location;
-  type: NamedType;
+  type: Type;
   edgeLabel: Name;
   direction: ConnectionDirectionEnum;
   cardinality: ConnectionCardinalityEnum;
