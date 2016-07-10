@@ -9,6 +9,20 @@ function lexOne(str) {
 
 describe('Meldio Lexer Extensions', () => {
 
+  it('lexes description comments', () => {
+
+    expect(
+      lexOne('## test description')
+    ).to.deep.equal({
+      kind: TokenKind.DESCRIPTION,
+      start: 0,
+      end: 19,
+      value: 'test description'
+    });
+
+  });
+
+
   it('recognizes dash that is not part of a number', () => {
 
     expect(

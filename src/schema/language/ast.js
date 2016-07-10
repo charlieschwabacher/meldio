@@ -25,6 +25,7 @@ export type Location = {
  * The list of all possible AST node types.
  */
 export type Node = Name
+                 | Description
                  | Document
                  | OperationDefinition
                  | VariableDefinition
@@ -73,6 +74,14 @@ export type Node = Name
 
 export type Name = {
   kind: 'Name';
+  loc?: ?Location;
+  value: string;
+}
+
+// Description
+
+export type Description = {
+  kind: 'Description';
   loc?: ?Location;
   value: string;
 }
@@ -302,6 +311,7 @@ export type ScalarTypeDefinition = {
   kind: 'ScalarTypeDefinition';
   loc?: ?Location;
   name: Name;
+  description?: ?Description;
   directives?: ?Array<Directive>;
 }
 
@@ -309,6 +319,7 @@ export type ObjectTypeDefinition = {
   kind: 'ObjectTypeDefinition';
   loc?: ?Location;
   name: Name;
+  description?: ?Description;
   interfaces?: ?Array<NamedType>;
   directives?: ?Array<Directive>;
   fields: Array<FieldDefinition>;
@@ -318,6 +329,7 @@ export type FieldDefinition = {
   kind: 'FieldDefinition';
   loc?: ?Location;
   name: Name;
+  description?: ?Description;
   arguments: Array<InputValueDefinition>;
   type: FieldType;
   directives?: ?Array<Directive>;
@@ -333,6 +345,7 @@ export type InputValueDefinition = {
   kind: 'InputValueDefinition';
   loc?: ?Location;
   name: Name;
+  description?: ?Description;
   type: Type;
   defaultValue?: ?Value;
   directives?: ?Array<Directive>;
@@ -342,6 +355,7 @@ export type InterfaceTypeDefinition = {
   kind: 'InterfaceTypeDefinition';
   loc?: ?Location;
   name: Name;
+  description?: ?Description;
   directives?: ?Array<Directive>;
   fields: Array<FieldDefinition>;
 }
@@ -350,6 +364,7 @@ export type UnionTypeDefinition = {
   kind: 'UnionTypeDefinition';
   loc?: ?Location;
   name: Name;
+  description?: ?Description;
   directives?: ?Array<Directive>;
   types: Array<NamedType>;
 }
@@ -358,6 +373,7 @@ export type EnumTypeDefinition = {
   kind: 'EnumTypeDefinition';
   loc?: ?Location;
   name: Name;
+  description?: ?Description;
   directives?: ?Array<Directive>;
   values: Array<EnumValueDefinition>;
 }
@@ -366,6 +382,7 @@ export type EnumValueDefinition = {
   kind: 'EnumValueDefinition';
   loc?: ?Location;
   name: Name;
+  description?: ?Description;
   directives?: ?Array<Directive>;
 }
 
@@ -373,6 +390,7 @@ export type InputObjectTypeDefinition = {
   kind: 'InputObjectTypeDefinition';
   loc?: ?Location;
   name: Name;
+  description?: ?Description;
   directives?: ?Array<Directive>;
   fields: Array<InputValueDefinition>;
 }
@@ -387,6 +405,7 @@ export type DirectiveDefinition = {
   kind: 'DirectiveDefinition';
   loc?: ?Location;
   name: Name;
+  description?: ?Description;
   arguments?: ?Array<InputValueDefinition>;
   locations: Array<Name>;
 }
@@ -397,6 +416,7 @@ export type MutationDefinition = {
   kind: 'MutationDefinition';
   loc?: ?Location;
   name: Name;
+  description?: ?Description;
   arguments: Array<InputValueDefinition>;
   directives?: ?Array<Directive>;
   result: ResultEnum;
@@ -419,6 +439,7 @@ export type FilterDefinition = {
   kind: 'FilterDefinition';
   loc?: ?Location;
   type: (ListType | ConnectionType);
+  description?: ?Description;
   conditions: Array<FilterCondition>;
 }
 
@@ -434,6 +455,7 @@ export type OrderDefinition = {
   kind: 'OrderDefinition';
   loc?: ?Location;
   type: (ListType | ConnectionType);
+  description?: ?Description;
   expressions: Array<OrderExpression>;
 }
 

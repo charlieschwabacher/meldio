@@ -104,10 +104,18 @@ const printDocASTReducer = {
   OperationTypeDefinition: ({ operation, type }) =>
     operation + ': ' + type,
 
-  ScalarTypeDefinition: ({ name, directives }) =>
+  ScalarTypeDefinition: ({ name, description, directives }) =>
+    descriptionComment(description) +
     join([ 'scalar', name, join(directives, ' ') ], ' '),
 
-  ObjectTypeDefinition: ({ name, interfaces, directives, fields }) =>
+  ObjectTypeDefinition: ({
+    name,
+    description,
+    interfaces,
+    directives,
+    fields
+  }) =>
+    descriptionComment(description) +
     join([
       'type',
       name,
@@ -116,20 +124,29 @@ const printDocASTReducer = {
       block(fields)
     ], ' '),
 
-  FieldDefinition: ({ name, arguments: args, type, directives }) =>
+  FieldDefinition: ({ name, description, arguments: args, type, directives }) =>
+    descriptionComment(description) +
     name +
     wrap('(', join(args, ', '), ')') +
     ': ' + type +
     wrap(' ', join(directives, ' ')),
 
-  InputValueDefinition: ({ name, type, defaultValue, directives }) =>
+  InputValueDefinition: ({
+    name,
+    description,
+    type,
+    defaultValue,
+    directives
+  }) =>
+    descriptionComment(description) +
     join([
       name + ': ' + type,
       wrap('= ', defaultValue),
       join(directives, ' ')
     ], ' '),
 
-  InterfaceTypeDefinition: ({ name, directives, fields }) =>
+  InterfaceTypeDefinition: ({ name, description, directives, fields }) =>
+    descriptionComment(description) +
     join([
       'interface',
       name,
@@ -137,7 +154,8 @@ const printDocASTReducer = {
       block(fields)
     ], ' '),
 
-  UnionTypeDefinition: ({ name, directives, types }) =>
+  UnionTypeDefinition: ({ name, description, directives, types }) =>
+    descriptionComment(description) +
     join([
       'union',
       name,
@@ -145,7 +163,8 @@ const printDocASTReducer = {
       '= ' + join(types, ' | ')
     ], ' '),
 
-  EnumTypeDefinition: ({ name, directives, values }) =>
+  EnumTypeDefinition: ({ name, description, directives, values }) =>
+    descriptionComment(description) +
     join([
       'enum',
       name,
@@ -153,10 +172,12 @@ const printDocASTReducer = {
       block(values)
     ], ' '),
 
-  EnumValueDefinition: ({ name, directives }) =>
+  EnumValueDefinition: ({ name, description, directives }) =>
+    descriptionComment(description) +
     join([ name, join(directives, ' ') ], ' '),
 
-  InputObjectTypeDefinition: ({ name, directives, fields }) =>
+  InputObjectTypeDefinition: ({ name, description, directives, fields }) =>
+    descriptionComment(description) +
     join([
       'input',
       name,
@@ -166,17 +187,26 @@ const printDocASTReducer = {
 
   TypeExtensionDefinition: ({ definition }) => `extend ${definition}`,
 
-  DirectiveDefinition: ({ name, arguments: args, locations }) =>
+  DirectiveDefinition: ({ name, description, arguments: args, locations }) =>
+    descriptionComment(description) +
     'directive @' + name + wrap('(', join(args, ', '), ')') +
     ' on ' + join(locations, ' | '),
 
-  MutationDefinition:
-    ({ name, arguments: args, directives, result, type, fields }) =>
-      'mutation ' + name + wrap('(', join(args, ', '), ')') + (
-        result === 'type' ?
-        ': ' + type + wrap(' ', join(directives, ' ')) :
-        wrap(' ', join(directives, ' ')) + ' ' + block(fields)
-      ),
+  MutationDefinition: ({
+    name,
+    description,
+    arguments: args,
+    directives,
+    result,
+    type,
+    fields
+  }) =>
+    descriptionComment(description) +
+    'mutation ' + name + wrap('(', join(args, ', '), ')') + (
+      result === 'type' ?
+      ': ' + type + wrap(' ', join(directives, ' ')) :
+      wrap(' ', join(directives, ' ')) + ' ' + block(fields)
+    ),
 
   QueryDefinition:
     ({ name, arguments: args, directives, result, type, fields }) =>
@@ -186,7 +216,8 @@ const printDocASTReducer = {
           wrap(' ', join(directives, ' ')) + ' ' + block(fields)
       ),
 
-  FilterDefinition: ({ type, conditions }) =>
+  FilterDefinition: ({ type, conditions, description }) =>
+    descriptionComment(description) +
     join([
       'filter',
       'on',
@@ -197,7 +228,8 @@ const printDocASTReducer = {
   FilterCondition: ({ key, arguments: args, condition }) =>
     `${key}: ${wrap('(', join(args, ', '), ') ')}${condition}`,
 
-  OrderDefinition: ({ type, expressions }) =>
+  OrderDefinition: ({ type, expressions, description }) =>
+    descriptionComment(description) +
     join([
       'order',
       'on',
@@ -259,4 +291,17 @@ function wrap(start, maybeString, end) {
 
 function indent(maybeString) {
   return maybeString && maybeString.replace(/\n/g, '\n  ');
+}
+
+/**
+ * Given description, print it as a description comment, possibly spanning
+ * multiple lines
+ */
+function descriptionComment(description) {
+  if (description) {
+    return description.value.split('\n').reduce(
+      (memo, line) => `${memo}## ${line}\n`
+    , '');
+  }
+  return '';
 }
